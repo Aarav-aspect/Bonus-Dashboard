@@ -1,14 +1,15 @@
 # Stage 1: Build the React frontend
 FROM node:20-slim AS frontend-builder
-RUN echo "BUILD_VERSION: 1.0.1 - FORCING PEER DEPS FIX"
+RUN echo "BUILD_VERSION: 1.0.2 - REPAIRED PEER DEPS FIX"
 WORKDIR /app/web-app
 COPY web-app/package*.json ./
 # Use --legacy-peer-deps and --force to handle React 19 peer dependency conflicts.
 RUN npm install --legacy-peer-deps --force
 COPY web-app/ ./
-RUN  # 1. Build the container image (FORCING NO CACHE TO ENSURE UPDATES)
-- name: 'gcr.io/cloud-builders/docker'
-args: ['build', '--no-cache', '-t', 'gcr.io/$PROJECT_ID/bonus-dashboard:$SHORT_SHA', '.']python:3.11-slim
+RUN npm run build
+
+# Stage 2: Build the Python backend
+FROM python:3.11-slim
 WORKDIR /app
 
 # Install system dependencies if needed (e.g. for pandas/numpy)
