@@ -11,12 +11,12 @@ const Login = () => {
     const handleLogin = (e) => {
         e.preventDefault();
         // Redirect to Backend Auth Endpoint
-        window.location.href = "http://localhost:8000/api/auth/signin/microsoft";
+        window.location.href = "/api/auth/signin/microsoft";
     };
 
     const handleDevLogin = async (role, group = null, trade = null) => {
         try {
-            await fetch("http://localhost:8000/api/auth/dev/login", {
+            await fetch("/api/auth/dev/login", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 credentials: "include",

@@ -1,4 +1,4 @@
-const API_BASE = "http://localhost:8000";
+const API_BASE = ""; // Relative paths for production usage (served by same backend)
 
 export async function fetchTradeGroups() {
     const res = await fetch(`${API_BASE}/meta/trade-groups`, {

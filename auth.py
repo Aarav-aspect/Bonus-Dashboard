@@ -268,7 +268,7 @@ def set_session_cookie(response: Response, token: str):
         key=SESSION_COOKIE_NAME,
         value=token,
         httponly=True,
-        secure=False,  # Set to True in production (HTTPS)
+        secure=True,  # Set to True in production (HTTPS)
         samesite="lax",
         path="/",
         expires=int(expires.timestamp()),
