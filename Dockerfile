@@ -2,7 +2,9 @@
 FROM node:20-slim AS frontend-builder
 WORKDIR /app/web-app
 COPY web-app/package*.json ./
-RUN npm install
+# We use --legacy-peer-deps because React 19 is used, and some packages 
+# (like tremor/radix) may not have updated their peerDep ranges yet.
+RUN npm ci --legacy-peer-deps
 COPY web-app/ ./
 RUN npm run build
 
