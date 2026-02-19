@@ -1,0 +1,29 @@
+steps:
+  # 1. Build the container image
+  - name: 'gcr.io/cloud-builders/docker'
+    args: ['build', '-t', 'gcr.io/$PROJECT_ID/bonus-dashboard:$SHORT_SHA', '.']
+
+  # 2. Push the image to Container Registry
+  - name: 'gcr.io/cloud-builders/docker'
+    args: ['push', 'gcr.io/$PROJECT_ID/bonus-dashboard:$SHORT_SHA']
+
+  # 3. Deploy to Cloud Run
+  - name: 'gcr.io/google.com/cloudsdktool/cloud-sdk'
+    entrypoint: gcloud
+    args:
+      - 'run'
+      - 'deploy'
+      - 'bonus-dashboard'
+      - '--image'
+      - 'gcr.io/$PROJECT_ID/bonus-dashboard:$SHORT_SHA'
+      - '--region'
+      - 'europe-west2' # Or any other region you prefer
+      - '--platform'
+      - 'managed'
+      - '--allow-unauthenticated'
+
+images:
+  - 'gcr.io/$PROJECT_ID/bonus-dashboard:$SHORT_SHA'
+
+options:
+  logging: CLOUD_LOGGING_ONLY

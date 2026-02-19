@@ -7,6 +7,8 @@ from typing import Optional, Dict, Any, List
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import RedirectResponse
 from fastapi import Request, Response
+from fastapi.staticfiles import StaticFiles
+import os
 
 # Existing logic (UNCHANGED)
 from backend import (
@@ -58,6 +60,25 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+# ------------------------------------------------------------
+# SERVE FRONTEND (For production)
+# ------------------------------------------------------------
+
+# We assume the frontend is built into 'web-app/dist'
+# This will be used in the Docker container
+dist_path = Path("web-app/dist")
+if dist_path.exists():
+    app.mount("/dashboard", StaticFiles(directory=str(dist_path), html=True), name="dashboard_static")
+    app.mount("/assets", StaticFiles(directory=str(dist_path / "assets")), name="assets")
+    
+    # Catch-all for React Router on the root or other paths if needed
+    @app.get("/")
+    async def serve_index():
+        index_file = dist_path / "index.html"
+        if index_file.exists():
+            from fastapi.responses import FileResponse
+            return FileResponse(index_file)
+        return {"message": "Frontend not built yet. Run 'npm run build' in web-app/"}
 
 # ------------------------------------------------------------
 # AUTH ENDPOINTS (Stateless Azure AD)
