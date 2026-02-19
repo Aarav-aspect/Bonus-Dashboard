@@ -1,0 +1,81 @@
+@keyframes pulse-subtle {
+    0% {
+        transform: scale(1);
+        opacity: 0.8;
+    }
+
+    50% {
+        transform: scale(1.05);
+        opacity: 1;
+    }
+
+    100% {
+        transform: scale(1);
+        opacity: 0.8;
+    }
+}
+
+@keyframes shimmer {
+    0% {
+        transform: translateX(-100%);
+    }
+
+    100% {
+        transform: translateX(100%);
+    }
+}
+
+.loader-overlay {
+    position: fixed;
+    inset: 0;
+    background: white;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    z-index: 9999;
+}
+
+.loader-container {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 2rem;
+    max-width: 300px;
+    width: 100%;
+}
+
+.loader-logo {
+    width: 180px;
+    animation: pulse-subtle 2s ease-in-out infinite;
+}
+
+.loader-progress-wrapper {
+    width: 100%;
+    height: 4px;
+    background: #f1f5f9;
+    border-radius: 999px;
+    overflow: hidden;
+    position: relative;
+}
+
+.loader-progress-bar {
+    height: 100%;
+    width: 100%;
+    background: linear-gradient(90deg, #3b82f6 0%, #2563eb 100%);
+    position: absolute;
+    top: 0;
+    left: 0;
+    animation: shimmer 1.5s infinite linear;
+}
+
+.loader-text {
+    font-family: 'Mont', sans-serif;
+    font-size: 11px;
+    font-weight: 800;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: #64748b;
+    margin-top: 0.5rem;
+    animation: pulse-subtle 2s ease-in-out infinite;
+}

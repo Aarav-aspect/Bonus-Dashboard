@@ -1,0 +1,1191 @@
+{
+  "kpis": {
+    "Estimate Conversion %": {
+      "direction": "higher_is_better",
+      "thresholds": [
+        {
+          "min": 60,
+          "score": 100
+        },
+        {
+          "min": 57.5,
+          "score": 90
+        },
+        {
+          "min": 55,
+          "score": 80
+        },
+        {
+          "min": 52.5,
+          "score": 70
+        },
+        {
+          "min": 50,
+          "score": 60
+        },
+        {
+          "min": 47.5,
+          "score": 50
+        },
+        {
+          "min": 45,
+          "score": 40
+        },
+        {
+          "min": 42.5,
+          "score": 30
+        },
+        {
+          "min": 40,
+          "score": 20
+        },
+        {
+          "min": 37.5,
+          "score": 10
+        },
+        {
+          "min": 0,
+          "score": 0
+        }
+      ]
+    },
+    "FOC Conversion Rate %": {
+      "direction": "higher_is_better",
+      "thresholds": [
+        {
+          "min": 70,
+          "score": 100
+        },
+        {
+          "min": 67.5,
+          "score": 90
+        },
+        {
+          "min": 65,
+          "score": 80
+        },
+        {
+          "min": 62.5,
+          "score": 70
+        },
+        {
+          "min": 60,
+          "score": 60
+        },
+        {
+          "min": 57.5,
+          "score": 50
+        },
+        {
+          "min": 55,
+          "score": 40
+        },
+        {
+          "min": 52.5,
+          "score": 30
+        },
+        {
+          "min": 50,
+          "score": 20
+        },
+        {
+          "min": 30,
+          "score": 10
+        },
+        {
+          "min": 0,
+          "score": 0
+        }
+      ]
+    },
+    "Estimate Production / Reactive Leads %": {
+      "direction": "higher_is_better",
+      "thresholds": [
+        {
+          "min": 38,
+          "score": 100
+        },
+        {
+          "min": 35.5,
+          "score": 90
+        },
+        {
+          "min": 33,
+          "score": 80
+        },
+        {
+          "min": 30.5,
+          "score": 70
+        },
+        {
+          "min": 28,
+          "score": 60
+        },
+        {
+          "min": 25.5,
+          "score": 50
+        },
+        {
+          "min": 23,
+          "score": 40
+        },
+        {
+          "min": 20.5,
+          "score": 30
+        },
+        {
+          "min": 18,
+          "score": 20
+        },
+        {
+          "min": 15.5,
+          "score": 10
+        },
+        {
+          "min": 0,
+          "score": 0
+        }
+      ]
+    },
+    "Reactive 6+ hours %": {
+      "direction": "lower_is_better",
+      "thresholds": [
+        {
+          "max": 5,
+          "score": 100
+        },
+        {
+          "max": 7.5,
+          "score": 90
+        },
+        {
+          "max": 10,
+          "score": 80
+        },
+        {
+          "max": 12.5,
+          "score": 70
+        },
+        {
+          "max": 15,
+          "score": 60
+        },
+        {
+          "max": 17.5,
+          "score": 50
+        },
+        {
+          "max": 20,
+          "score": 40
+        },
+        {
+          "max": 22.5,
+          "score": 30
+        },
+        {
+          "max": 25,
+          "score": 20
+        },
+        {
+          "max": 27.5,
+          "score": 10
+        },
+        {
+          "max": 100,
+          "score": 0
+        }
+      ]
+    },
+    "Late to Site %": {
+      "direction": "lower_is_better",
+      "thresholds": [
+        {
+          "max": 3.5,
+          "score": 100
+        },
+        {
+          "max": 4.75,
+          "score": 90
+        },
+        {
+          "max": 6,
+          "score": 80
+        },
+        {
+          "max": 7.25,
+          "score": 70
+        },
+        {
+          "max": 8.5,
+          "score": 60
+        },
+        {
+          "max": 9.75,
+          "score": 50
+        },
+        {
+          "max": 11,
+          "score": 40
+        },
+        {
+          "max": 12.25,
+          "score": 30
+        },
+        {
+          "max": 13.5,
+          "score": 20
+        },
+        {
+          "max": 14.75,
+          "score": 10
+        },
+        {
+          "max": 16,
+          "score": 0
+        }
+      ]
+    },
+    "Average Review Rating": {
+      "direction": "higher_is_better",
+      "thresholds": [
+        {
+          "min": 5,
+          "score": 100
+        },
+        {
+          "min": 4.8,
+          "score": 90
+        },
+        {
+          "min": 4.6,
+          "score": 80
+        },
+        {
+          "min": 4.4,
+          "score": 70
+        },
+        {
+          "min": 4.2,
+          "score": 60
+        },
+        {
+          "min": 4,
+          "score": 50
+        },
+        {
+          "min": 0,
+          "score": 0
+        }
+      ]
+    },
+    "Review Ratio %": {
+      "direction": "higher_is_better",
+      "thresholds": [
+        {
+          "min": 15,
+          "score": 100
+        },
+        {
+          "min": 13,
+          "score": 90
+        },
+        {
+          "min": 11,
+          "score": 80
+        },
+        {
+          "min": 9,
+          "score": 70
+        },
+        {
+          "min": 7,
+          "score": 60
+        },
+        {
+          "min": 5,
+          "score": 50
+        },
+        {
+          "min": 0,
+          "score": 0
+        }
+      ]
+    },
+    "Engineer Satisfaction %": {
+      "direction": "higher_is_better",
+      "thresholds": [
+        {
+          "min": 90,
+          "score": 100
+        },
+        {
+          "min": 80,
+          "score": 90
+        },
+        {
+          "min": 70,
+          "score": 80
+        },
+        {
+          "min": 60,
+          "score": 70
+        },
+        {
+          "min": 50,
+          "score": 60
+        },
+        {
+          "min": 40.5,
+          "score": 50
+        },
+        {
+          "min": 30,
+          "score": 40
+        },
+        {
+          "min": 20.5,
+          "score": 30
+        },
+        {
+          "min": 10,
+          "score": 20
+        },
+        {
+          "min": 0,
+          "score": 10
+        }
+      ]
+    },
+    "Engineer Retention %": {
+      "direction": "higher_is_better",
+      "thresholds": [
+        {
+          "min": 95,
+          "score": 100
+        },
+        {
+          "min": 92.5,
+          "score": 90
+        },
+        {
+          "min": 90,
+          "score": 80
+        },
+        {
+          "min": 87.5,
+          "score": 70
+        },
+        {
+          "min": 85,
+          "score": 60
+        },
+        {
+          "min": 82.5,
+          "score": 50
+        },
+        {
+          "min": 80,
+          "score": 40
+        },
+        {
+          "min": 77.5,
+          "score": 30
+        },
+        {
+          "min": 75,
+          "score": 20
+        },
+        {
+          "min": 72.5,
+          "score": 10
+        },
+        {
+          "min": 0,
+          "score": 0
+        }
+      ]
+    },
+    "Average Driving Score": {
+      "direction": "higher_is_better",
+      "thresholds": [
+        {
+          "min": 9.4,
+          "score": 100
+        },
+        {
+          "min": 8.6,
+          "score": 90
+        },
+        {
+          "min": 8.6,
+          "score": 80
+        },
+        {
+          "min": 8.2,
+          "score": 70
+        },
+        {
+          "min": 7.8,
+          "score": 60
+        },
+        {
+          "min": 7.4,
+          "score": 50
+        },
+        {
+          "min": 7,
+          "score": 40
+        },
+        {
+          "min": 6.6,
+          "score": 30
+        },
+        {
+          "min": 6.2,
+          "score": 20
+        },
+        {
+          "min": 5.8,
+          "score": 10
+        },
+        {
+          "min": 0,
+          "score": 0
+        }
+      ]
+    },
+    "Drivers with <7 %": {
+      "direction": "lower_is_better",
+      "thresholds": [
+        {
+          "max": 10,
+          "score": 100
+        },
+        {
+          "max": 15,
+          "score": 90
+        },
+        {
+          "max": 20,
+          "score": 80
+        },
+        {
+          "max": 25,
+          "score": 70
+        },
+        {
+          "max": 30,
+          "score": 60
+        },
+        {
+          "max": 35,
+          "score": 50
+        },
+        {
+          "max": 100,
+          "score": 0
+        }
+      ]
+    },
+    "Sales Target Achievement %": {
+      "direction": "higher_is_better",
+      "thresholds": [
+        {
+          "min": 85,
+          "score": 100
+        },
+        {
+          "min": 80,
+          "score": 90
+        },
+        {
+          "min": 75,
+          "score": 80
+        },
+        {
+          "min": 70,
+          "score": 70
+        },
+        {
+          "min": 65,
+          "score": 60
+        },
+        {
+          "min": 60,
+          "score": 50
+        },
+        {
+          "min": 0,
+          "score": 0
+        }
+      ]
+    },
+    "Callback Jobs": {
+      "direction": "lower_is_better",
+      "thresholds": [
+        {
+          "max": 3,
+          "score": 100
+        },
+        {
+          "max": 5,
+          "score": 90
+        },
+        {
+          "max": 8,
+          "score": 80
+        },
+        {
+          "max": 10,
+          "score": 70
+        },
+        {
+          "max": 15,
+          "score": 60
+        },
+        {
+          "max": 20,
+          "score": 50
+        },
+        {
+          "max": 25,
+          "score": 40
+        },
+        {
+          "max": 30,
+          "score": 30
+        },
+        {
+          "max": 40,
+          "score": 20
+        },
+        {
+          "max": 50,
+          "score": 10
+        },
+        {
+          "max": 999999,
+          "score": 0
+        }
+      ]
+    },
+    "Unclosed SA %": {
+      "direction": "lower_is_better",
+      "thresholds": [
+        {
+          "max": 10,
+          "score": 100
+        },
+        {
+          "max": 10.25,
+          "score": 90
+        },
+        {
+          "max": 10.5,
+          "score": 80
+        },
+        {
+          "max": 10.75,
+          "score": 70
+        },
+        {
+          "max": 11,
+          "score": 60
+        },
+        {
+          "max": 11.25,
+          "score": 50
+        },
+        {
+          "max": 11.5,
+          "score": 40
+        },
+        {
+          "max": 11.75,
+          "score": 30
+        },
+        {
+          "max": 12,
+          "score": 20
+        },
+        {
+          "max": 12.25,
+          "score": 10
+        },
+        {
+          "max": 100,
+          "score": 0
+        }
+      ]
+    },
+    "Cases %": {
+      "direction": "lower_is_better",
+      "thresholds": [
+        {
+          "max": 10,
+          "score": 100
+        },
+        {
+          "max": 15,
+          "score": 90
+        },
+        {
+          "max": 20,
+          "score": 80
+        },
+        {
+          "max": 25,
+          "score": 70
+        },
+        {
+          "max": 30,
+          "score": 60
+        },
+        {
+          "max": 35,
+          "score": 50
+        },
+        {
+          "max": 100,
+          "score": 0
+        }
+      ]
+    },
+    "Ops Count %": {
+      "direction": "higher_is_better",
+      "thresholds": [
+        {
+          "min": 110,
+          "score": 100
+        },
+        {
+          "min": 105,
+          "score": 90
+        },
+        {
+          "min": 100,
+          "score": 80
+        },
+        {
+          "min": 95,
+          "score": 70
+        },
+        {
+          "min": 90,
+          "score": 60
+        },
+        {
+          "min": 0,
+          "score": 0
+        }
+      ]
+    },
+    "TQR Ratio %": {
+      "direction": "higher_is_better",
+      "thresholds": [
+        {
+          "min": 92,
+          "score": 100
+        },
+        {
+          "min": 85,
+          "score": 90
+        },
+        {
+          "min": 80,
+          "score": 80
+        },
+        {
+          "min": 75,
+          "score": 70
+        },
+        {
+          "min": 70,
+          "score": 60
+        },
+        {
+          "min": 65,
+          "score": 50
+        },
+        {
+          "min": 0,
+          "score": 0
+        }
+      ]
+    },
+    "TQR (Not Satisfied) Ratio %": {
+      "direction": "lower_is_better",
+      "thresholds": [
+        {
+          "max": 0,
+          "score": 100
+        },
+        {
+          "max": 2.5,
+          "score": 90
+        },
+        {
+          "max": 5,
+          "score": 80
+        },
+        {
+          "max": 7.5,
+          "score": 70
+        },
+        {
+          "max": 10,
+          "score": 60
+        },
+        {
+          "max": 12.5,
+          "score": 50
+        },
+        {
+          "max": 15,
+          "score": 40
+        },
+        {
+          "max": 100,
+          "score": 0
+        }
+      ]
+    },
+    "Callback Jobs %": {
+      "direction": "lower_is_better",
+      "thresholds": [
+        {
+          "max": 0,
+          "score": 100
+        },
+        {
+          "max": 1.25,
+          "score": 90
+        },
+        {
+          "max": 2.5,
+          "score": 80
+        },
+        {
+          "max": 3.75,
+          "score": 70
+        },
+        {
+          "max": 5,
+          "score": 60
+        },
+        {
+          "max": 6.25,
+          "score": 50
+        },
+        {
+          "max": 7.5,
+          "score": 40
+        },
+        {
+          "max": 8.75,
+          "score": 30
+        },
+        {
+          "max": 10,
+          "score": 20
+        },
+        {
+          "max": 11.25,
+          "score": 10
+        },
+        {
+          "max": 100,
+          "score": 0
+        }
+      ]
+    },
+    "VCR Update %": {
+      "direction": "higher_is_better",
+      "thresholds": [
+        {
+          "min": 100,
+          "score": 100
+        },
+        {
+          "min": 90,
+          "score": 90
+        },
+        {
+          "min": 80,
+          "score": 80
+        },
+        {
+          "min": 70,
+          "score": 70
+        },
+        {
+          "min": 60,
+          "score": 60
+        },
+        {
+          "min": 50,
+          "score": 50
+        },
+        {
+          "min": 40,
+          "score": 40
+        },
+        {
+          "min": 30,
+          "score": 30
+        },
+        {
+          "min": 20,
+          "score": 20
+        },
+        {
+          "min": 10,
+          "score": 10
+        },
+        {
+          "min": 0,
+          "score": 0
+        }
+      ]
+    },
+    "Absence %": {
+      "direction": "lower_is_better",
+      "thresholds": [
+        {
+          "max": 5,
+          "score": 100
+        },
+        {
+          "max": 7.5,
+          "score": 90
+        },
+        {
+          "max": 10,
+          "score": 80
+        },
+        {
+          "max": 12.5,
+          "score": 70
+        },
+        {
+          "max": 15,
+          "score": 60
+        },
+        {
+          "max": 17.5,
+          "score": 50
+        },
+        {
+          "max": 20,
+          "score": 40
+        },
+        {
+          "max": 100,
+          "score": 0
+        }
+      ]
+    },
+    "Average Site Value (\u00a3)": {
+      "direction": "higher_is_better",
+      "dynamic": {
+        "type": "trade_based",
+        "scores": [
+          100,
+          90,
+          80,
+          70,
+          60,
+          50,
+          40,
+          30,
+          20,
+          10
+        ],
+        "thresholds_by_trade": {
+          "HVAC": [
+            10000,
+            9000,
+            8000,
+            7000,
+            6000,
+            5000,
+            4000,
+            3000,
+            2000,
+            1000
+          ],
+          "Electrical": [
+            1000,
+            900,
+            800,
+            700,
+            600,
+            500,
+            400,
+            300,
+            200,
+            100
+          ],
+          "Plumbing": [
+            1100,
+            1000,
+            900,
+            800,
+            700,
+            600,
+            500,
+            400,
+            300,
+            200
+          ],
+          "HVac & Electrical": [
+            880.0,
+            840.0,
+            800.0,
+            760.0,
+            720.0,
+            680.0,
+            640.0,
+            600.0,
+            560.0,
+            520.0
+          ]
+        }
+      }
+    },
+    "SA Attended": {
+      "direction": "higher_is_better",
+      "dynamic": {
+        "type": "trade_based",
+        "scores": [
+          100,
+          90,
+          80,
+          70,
+          60,
+          50,
+          40,
+          30,
+          20,
+          10
+        ],
+        "thresholds_by_trade": {
+          "HVAC": [
+            140,
+            130,
+            120,
+            110,
+            100,
+            90,
+            80,
+            70,
+            60,
+            50
+          ],
+          "Electrical": [
+            160,
+            150,
+            140,
+            130,
+            120,
+            110,
+            100,
+            90,
+            80,
+            70
+          ],
+          "Plumbing": [
+            150,
+            140,
+            130,
+            120,
+            110,
+            100,
+            90,
+            80,
+            70,
+            60
+          ],
+          "HVac & Electrical": [
+            950.0,
+            850.0,
+            750.0,
+            650.0,
+            600.0,
+            550.0,
+            450.0,
+            400.0,
+            350.0,
+            300.0
+          ]
+        }
+      }
+    },
+    "Average Converted Estimate Value (\u00a3)": {
+      "direction": "higher_is_better",
+      "dynamic": {
+        "type": "trade_based",
+        "scores": [
+          100,
+          90,
+          80,
+          70,
+          60,
+          50,
+          40,
+          30,
+          20,
+          10
+        ],
+        "thresholds_by_trade": {
+          "HVAC": [
+            950,
+            900,
+            850,
+            800,
+            750,
+            700,
+            650,
+            600,
+            550,
+            500
+          ],
+          "Electrical": [
+            800,
+            750,
+            700,
+            650,
+            600,
+            550,
+            500,
+            450,
+            400,
+            350
+          ],
+          "Plumbing": [
+            900,
+            850,
+            800,
+            750,
+            700,
+            650,
+            600,
+            550,
+            500,
+            450
+          ],
+          "HVac & Electrical": [
+            1100.0,
+            1050.0,
+            1000.0,
+            950.0,
+            900.0,
+            850.0,
+            800.0,
+            750.0,
+            700.0,
+            650.0
+          ]
+        }
+      }
+    },
+    "Conversion Rate (%)": {
+      "direction": "higher_is_better",
+      "thresholds": [
+        {
+          "min": 75,
+          "score": 100
+        },
+        {
+          "min": 70,
+          "score": 90
+        },
+        {
+          "min": 65,
+          "score": 80
+        },
+        {
+          "min": 60,
+          "score": 70
+        },
+        {
+          "min": 55,
+          "score": 60
+        },
+        {
+          "min": 50,
+          "score": 50
+        },
+        {
+          "min": 45,
+          "score": 40
+        },
+        {
+          "min": 40,
+          "score": 30
+        },
+        {
+          "min": 35,
+          "score": 20
+        },
+        {
+          "min": 30,
+          "score": 10
+        },
+        {
+          "min": 0,
+          "score": 0
+        }
+      ]
+    },
+    "Reactive 6+ Hours (%)": {
+      "direction": "lower_is_better",
+      "thresholds": [
+        {
+          "max": 6,
+          "score": 100
+        },
+        {
+          "max": 7,
+          "score": 90
+        },
+        {
+          "max": 10,
+          "score": 80
+        },
+        {
+          "max": 12,
+          "score": 70
+        },
+        {
+          "max": 15,
+          "score": 60
+        },
+        {
+          "max": 18,
+          "score": 50
+        },
+        {
+          "max": 20,
+          "score": 40
+        },
+        {
+          "max": 23,
+          "score": 30
+        },
+        {
+          "max": 25,
+          "score": 20
+        },
+        {
+          "max": 30,
+          "score": 10
+        },
+        {
+          "max": 100,
+          "score": 0
+        }
+      ]
+    }
+  }
+}
