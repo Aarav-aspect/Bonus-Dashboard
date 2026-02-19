@@ -1,11 +1,14 @@
+substitutions:
+  _TAG: latest
+
 steps:
   # 1. Build the container image
   - name: 'gcr.io/cloud-builders/docker'
-    args: ['build', '--no-cache', '-t', 'gcr.io/$PROJECT_ID/bonus-dashboard:$SHORT_SHA', '.']
+    args: ['build', '--no-cache', '-t', 'gcr.io/$PROJECT_ID/bonus-dashboard:${_TAG}', '.']
 
   # 2. Push the image to Container Registry
   - name: 'gcr.io/cloud-builders/docker'
-    args: ['push', 'gcr.io/$PROJECT_ID/bonus-dashboard:$SHORT_SHA']
+    args: ['push', 'gcr.io/$PROJECT_ID/bonus-dashboard:${_TAG}']
 
   # 3. Deploy to Cloud Run
   - name: 'gcr.io/google.com/cloudsdktool/cloud-sdk'
@@ -15,7 +18,7 @@ steps:
       - 'deploy'
       - 'bonus-dashboard'
       - '--image'
-      - 'gcr.io/$PROJECT_ID/bonus-dashboard:$SHORT_SHA'
+      - 'gcr.io/$PROJECT_ID/bonus-dashboard:${_TAG}'
       - '--region'
       - 'europe-west2'
       - '--platform'
@@ -23,7 +26,7 @@ steps:
       - '--allow-unauthenticated'
 
 images:
-  - 'gcr.io/$PROJECT_ID/bonus-dashboard:$SHORT_SHA'
+  - 'gcr.io/$PROJECT_ID/bonus-dashboard:${_TAG}'
 
 options:
   logging: CLOUD_LOGGING_ONLY
