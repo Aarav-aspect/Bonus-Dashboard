@@ -2,9 +2,9 @@
 FROM node:20-slim AS frontend-builder
 WORKDIR /app/web-app
 COPY web-app/package*.json ./
-# Use --legacy-peer-deps to handle React 19 peer dependency conflicts.
-# npm install is used here as it's more resilient than npm ci for this conflict.
-RUN npm install --legacy-peer-deps
+# Use --legacy-peer-deps and --force to handle React 19 peer dependency conflicts.
+RUN echo "=== STARTING NPM INSTALL WITH PEER DEPS FIX ===" && \
+    npm install --legacy-peer-deps --force
 COPY web-app/ ./
 RUN npm run build
 
