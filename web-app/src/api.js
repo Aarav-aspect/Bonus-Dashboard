@@ -25,7 +25,7 @@ export async function fetchMonths() {
 }
 
 export async function fetchDashboard(month, tradeGroup, tradeFilter) {
-    const res = await fetch(`${API_BASE}/dashboard`, {
+    const res = await fetch(`${API_BASE}/api/dashboard`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         credentials: "include",

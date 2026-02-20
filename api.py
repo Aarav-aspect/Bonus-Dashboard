@@ -99,7 +99,7 @@ def signin_microsoft():
 
 
 @app.get("/api/auth/callback/microsoft")
-async def callback_microsoft(code: str):
+async def callback_microsoft(request: Request, code: str):
     """
     Handle OAuth callback from Microsoft.
     Exchange code → get ID token → create session JWT → redirect to frontend.
@@ -138,7 +138,7 @@ async def callback_microsoft(code: str):
 
     # 7. Set cookie and redirect to frontend dashboard
     redirect = RedirectResponse(url=f"{auth.FRONTEND_URL}/dashboard")
-    auth.set_session_cookie(redirect, session_token)
+    auth.set_session_cookie(request, redirect, session_token)
     return redirect
 
 
@@ -170,7 +170,7 @@ class DevLoginRequest(BaseModel):
 
 
 @app.post("/api/auth/dev/login")
-def dev_login(data: DevLoginRequest, response: Response):
+def dev_login(request: Request, data: DevLoginRequest, response: Response):
     """
     Developer login endpoint.
     Creates a valid session cookie for the requested role without Azure AD.
@@ -184,7 +184,7 @@ def dev_login(data: DevLoginRequest, response: Response):
         trade=data.assigned_trade
     )
     
-    auth.set_session_cookie(response, token)
+    auth.set_session_cookie(request, response, token)
     return {"status": "success", "message": f"Logged in as {data.role}"}
 
 
@@ -363,7 +363,7 @@ def update_dynamic_threshold_all_groups(kpi_name: str, thresholds: List[float], 
 # DASHBOARD ENDPOINT
 # ------------------------------------------------------------
 
-@app.post("/dashboard", response_model=DashboardResponse)
+@app.post("/api/dashboard", response_model=DashboardResponse)
 def get_dashboard(data: DashboardRequest, request: Request):
     """
     This is the MAIN endpoint React will call.

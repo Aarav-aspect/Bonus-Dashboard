@@ -261,14 +261,21 @@ def decode_session_token(token: str) -> dict:
         return None
 
 
-def set_session_cookie(response: Response, token: str):
+def set_session_cookie(request: Request, response: Response, token: str):
     """Set the session JWT as an HTTP-only cookie."""
     expires = datetime.utcnow() + timedelta(days=SESSION_EXPIRY_DAYS)
+    
+    # Dynamically determine if we should use 'secure' cookies.
+    # Cloud Run (production) requires Secure=True for HTTPS.
+    # Localhost usually runs on HTTP and would reject Secure=True.
+    host = request.headers.get("host", "")
+    is_localhost = "localhost" in host or "127.0.0.1" in host
+    
     response.set_cookie(
         key=SESSION_COOKIE_NAME,
         value=token,
         httponly=True,
-        secure=True,  # Set to True in production (HTTPS)
+        secure=not is_localhost,
         samesite="lax",
         path="/",
         expires=int(expires.timestamp()),
