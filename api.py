@@ -81,6 +81,19 @@ if dist_path.exists():
         return {"message": "Frontend not built yet. Run 'npm run build' in web-app/"}
 
 # ------------------------------------------------------------
+# FALLBACK ROUTING (For development)
+# ------------------------------------------------------------
+
+@app.get("/dashboard")
+async def dashboard_fallback():
+    """
+    If someone hits /dashboard on the backend port directly:
+    - In production: app.mount handles it (if dist exists).
+    - In development: Redirect to the Vite port.
+    """
+    return RedirectResponse(url=f"{auth.FRONTEND_URL}/dashboard")
+
+# ------------------------------------------------------------
 # AUTH ENDPOINTS (Stateless Azure AD)
 # ------------------------------------------------------------
 
