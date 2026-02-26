@@ -19,7 +19,12 @@ def get_service_resources_query() -> str:
     return """
         SELECT Id, Name, RelatedRecord.Email, Email__c, Trade_Lookup__c
         FROM ServiceResource
-        WHERE Trade_Lookup__c != NULL AND IsActive = true
+        WHERE Trade_Lookup__c != NULL 
+        AND IsActive = true
+        AND Is_User_Active__c = true
+        AND Account.Chumley_Test_Record__c = false
+        AND FSM__c = false
+        AND RelatedRecord.Profile_Name__c = 'Engineer Partner Community'
     """
 
 def get_ops_count_query(trades_str: str) -> str:
@@ -152,7 +157,7 @@ def get_service_appointments_month_query(trades_str: str, start_iso: str, end_is
 
 def get_service_appointments_by_actual_start_query(trades_str: str, start_iso: str, end_iso: str) -> str:
     return f"""
-        SELECT Id, Job__c, Status, CreatedDate, ActualStartTime, ArrivalWindowStartTime,
+        SELECT Id, AppointmentNumber, Job__c, Job__r.Name, Status, CreatedDate, ActualStartTime, ArrivalWindowStartTime,
                Review_Star_Rating__c, Signed_SR__c,
                Job__r.Job_Type_Trade__c, Job__r.Sector_Type__c, Job__r.Account_Type__c
         FROM ServiceAppointment 

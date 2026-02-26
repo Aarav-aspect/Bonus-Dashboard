@@ -641,6 +641,50 @@ def fetch_jobs_created_and_closed_count(
 # Vehicular Merge + KPI
 # ============================================================
 
+# Email overrides: maps Webfleet email (lowercase) → correct Salesforce email (lowercase)
+# Add new mismatches here whenever Webfleet and Salesforce emails don't align.
+WEBFLEET_EMAIL_MAP = {
+    "rionmanandvan@outlook.com":        "rion.peters@aspect.co.uk",
+    "michael.hall@aspect.co.uk":        "ziaaspect@gmail.com",
+    "iwanengineering@outlook.com":      "igor.bochentin@aspect.co.uk",
+    "busterdoyle1@gmail.com":           "phillip.doyle@aspect.co.uk",
+    "frankiemclintock14@gmail.com":     "frankie.mclintock@aspect.co.uk",
+    "jimbohiggo2911@gmail.com":         "james.higgins@aspect.co.uk",
+    "abuafzalmiah@hotmail.com":         "abu.miah@aspect.co.uk",
+    "kofikonnect@gmail.com":            "kofi.boakye@aspect.co.uk",
+    "reece.tullett@outlook.com":        "reece.tullett@aspect.co.uk",
+    "joshieplayer@hotmail.co.uk":       "joshua.player@aspect.co.uk",
+    "srboom@me.com":                    "steven.boom@aspect.co.uk",
+    "darrenpodmore2025@outlook.com":    "darren.podmore@aspect.co.uk",
+    "s.uelectricss@gmail.com":          "serhat.uysal@aspect.co.uk",
+    "l.beeson@hotmail.com":             "lewis.beeson@aspect.co.uk",
+    "owenct07@gmail.com":               "owen.taunton@aspect.co.uk",
+    "artinpacolli@gmail.com":           "artin.pacoli@aspect.co.uk",
+    "tdgallagher8777@yahoo.com":        "thomas.gallagher@aspect.co.uk",
+    "jaywebster041@gmail.com":          "jay.webster@aspect.co.uk",
+    "soloarribaa@gmail.com":            "nathan.sango@aspect.co.uk",
+    "bowdensean6@gmail.com":            "sean.bowden@aspect.co.uk",
+    "aarongale1998@icloud.com":         "aaron.gale@aspect.co.uk",
+    "dwaynewilson420@gmail.com":        "dwayne.wilson@aspect.co.uk",
+    "stingray2303@yahoo.com":           "matthew.boyes@aspect.co.uk",
+    "tjay751@icloud.com":               "robbie.wray@aspect.co.uk",
+    "emanuelshehi16@gmail.com":         "emanuel.shehi@aspect.co.uk",
+    "deniz.okcay@aspect.co.uk":         "deniz.ockay@aspect.co.uk",   # typo fix
+    "montel.o@hotmail.com":             "montel.brown@aspect.co.uk",
+    "shane.bradey@aspect.co.uk":        "shane.brady@aspect.co.uk",   # typo fix
+    "relliot0722@gmail.com":            "robert.elliott@aspect.co.uk",
+    "daniel.linkson@aspect.co.uk":      "amandeep.aspect.staging@gmail.com",
+    "charlie.mitchel@aspect.co.uk":     "charlie.mitchell@aspect.co.uk",  # typo fix
+    "tristan.upton@aspect.co.uk":       "amandeep.singh@aspect.co.uk",
+    "ali.totali@aspect.co.uk":          "ali.tolali@aspect.co.uk",    # typo fix
+    "office@bugthugsuk.com":            "mike.houareau@aspect.co.uk",
+    "ahmed.belafkih@aspet.co.uk":       "ahmed.belafkih@aspect.co.uk",  # typo fix
+    "bradley.wells@aspect.co.uk":       "amandeep.singh@aspect.co.uk",
+    "lukejcashin@gmail.com":            "luke.cashin@aspect.co.uk",
+    "lukasz.zarebaasp@aspect.co.uk":    "amandeep.singh@aspect.co.uk",
+    "aspect70@aspect.co.uk":            "patrick.read@aspect.co.uk",
+}
+
 def get_merged_vehicular_data() -> pd.DataFrame:
     df_drivers = fetch_webfleet_drivers()
     df_optidrive = fetch_optidrive_scores_bulk()
@@ -664,6 +708,11 @@ def get_merged_vehicular_data() -> pd.DataFrame:
 
     df_merged["Email_Lower"] = (
         df_merged["Email"].fillna("").astype(str).str.lower().str.strip()
+    )
+
+    # Apply email overrides: replace known Webfleet-only emails with the correct Salesforce email.
+    df_merged["Email_Lower"] = df_merged["Email_Lower"].map(
+        lambda e: WEBFLEET_EMAIL_MAP.get(e, e)
     )
 
     if not df_engineers.empty:
@@ -1031,25 +1080,44 @@ def compute_kpis(
     count_attended_prev = 0
     count_reviews_prev = 0
     review_ratio = None
+    avg_rating = None          # ← ARR now also based on previous month
     
     if not df_sa_activity_prev.empty:
         # We rely on the fetch function to have filtered by date range already
-        attended_prev = df_sa_activity_prev[df_sa_activity_prev["Status"] == "Visit Complete"]
+        attended_prev = df_sa_activity_prev[df_sa_activity_prev["Status"] == "Visit Complete"].copy()
         # Convert to numeric to be safe
         attended_prev["Review_Star_Rating__c"] = pd.to_numeric(
             attended_prev["Review_Star_Rating__c"], errors="coerce"
         )
         
-        count_attended_prev = len(attended_prev)
-        with_review_prev = attended_prev[attended_prev["Review_Star_Rating__c"].notna()]
+        # Extract Job__r.Name from nested dictionary if it exists
+        if "Job__r" in attended_prev.columns:
+            attended_prev["Job__r.Name"] = attended_prev["Job__r"].apply(
+                lambda x: x.get("Name") if isinstance(x, dict) else None
+            )
+
+        # Deduplicate by Job__r.Name (Job Number) to get per-job review stats rather than per-SA
+        # The Salesforce API sometimes returns Job__r.Name directly, or nested. We can safely deduplicate
+        # using Job__c instead if Job__r.Name is missing as a column since it's a 1:1 mapping to Job Number.
+        attended_prev = attended_prev.sort_values(by="Review_Star_Rating__c", ascending=False)
+        dedup_col = "Job__r.Name" if "Job__r.Name" in attended_prev.columns else "Job__c"
+        attended_prev_unique_jobs = attended_prev.drop_duplicates(subset=[dedup_col], keep="first")
+        
+        count_attended_prev = len(attended_prev_unique_jobs)
+        with_review_prev = attended_prev_unique_jobs[attended_prev_unique_jobs["Review_Star_Rating__c"].notna()]
         count_reviews_prev = len(with_review_prev)
         
         review_ratio = (
             count_reviews_prev / count_attended_prev * 100 if count_attended_prev else None
         )
 
+        # Average Review Rating — also previous month (using the unique jobs data)
+        avg_rating = (
+            round(with_review_prev["Review_Star_Rating__c"].mean(), 1) if count_reviews_prev else None
+        )
+
     # ------------------------------------------------------------------
-    # Current Month SA Metrics (for Late Stats, SA Attended, Avg Rating)
+    # Current Month SA Metrics (for Late Stats, SA Attended)
     # ------------------------------------------------------------------
     if not df_sa_activity.empty:
         service_appts = len(df_sa_activity)
@@ -1058,10 +1126,7 @@ def compute_kpis(
         count_attended = len(attended)
         count_reviews = len(with_review)
         total_star_rating = with_review["Review_Star_Rating__c"].sum()
-        avg_rating = (
-            round(with_review["Review_Star_Rating__c"].mean(), 1) if count_reviews else None
-        )
-        # Note: review_ratio is now calculated above using prev data
+        # Note: avg_rating and review_ratio are now calculated above using prev data
         
         # Late Calculation
         # We need to ensure we don't have NaTs before comparison to avoid errors
@@ -1081,7 +1146,7 @@ def compute_kpis(
         count_attended = 0
         count_reviews = 0
         total_star_rating = 0 # Ensure this is reset if empty
-        avg_rating = None
+        # avg_rating and review_ratio are handled above
         # review_ratio is handled above
         late_count = 0
         late_pct = 0.0
@@ -1109,9 +1174,7 @@ def compute_kpis(
             df_vcr["Trade Group"] == trade_group_selected
         ].shape[0]
 
-    vcr_update_pct = None
-    if ops_count > 0:
-        vcr_update_pct = (vcr_count / (ops_count * 4)) * 100
+    vcr_update_pct = None  # calculated after vehicular_kpi is available (uses driver_count)
 
     # --------------------------------------------------------
     # TQR Ratios
@@ -1195,6 +1258,11 @@ def compute_kpis(
 
     # Vehicular KPI
     vehicular_kpi = calculate_vehicular_kpi(df_vehicular, trade_group_selected)
+
+    # VCR % uses driver_count (Webfleet) as denominator so it aligns with Drivers with <7
+    driver_count = vehicular_kpi.get("driver_count", 0)
+    if driver_count > 0:
+        vcr_update_pct = (vcr_count / (driver_count * 4)) * 100
 
     # --------------------------------------------------------
     # 4. Flat KPI dict (numeric values, no strings)
@@ -1374,7 +1442,7 @@ def compute_kpis(
         "driver_count": vehicular_kpi.get("driver_count", 0),
         "drivers_below_7_count": int((vehicular_kpi.get("drivers_below_7_pct") or 0) / 100 * vehicular_kpi.get("driver_count", 0)) if vehicular_kpi.get("driver_count") else 0,
         "vcr_count": vcr_count,
-        "vcr_target": ops_count * 4 if ops_count else 0,
+        "vcr_target": driver_count * 4 if driver_count else 0,
 
         # Procedural Metrics
         "tqr_total_count": tqr_total_count,

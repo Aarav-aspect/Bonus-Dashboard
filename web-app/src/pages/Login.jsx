@@ -2,7 +2,7 @@ import React from 'react';
 import logoIcon from '../assets/aspectLogoIcon.svg';
 import background from '../assets/background.jpg';
 import comboLogo from '../assets/Combo.png';
-import { MicrosoftIcon } from '../components/MicrosoftIcon';
+import { MicrosoftIcon } from '../components/common/MicrosoftIcon';
 
 const Login = () => {
     const location = window.location;

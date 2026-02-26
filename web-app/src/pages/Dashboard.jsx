@@ -1,14 +1,14 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import Header from '../components/Header';
-import PerformanceSummary from '../components/PerformanceSummary';
-import CategoryBlock from '../components/CategoryBlock';
-import { SummarySkeleton, CategorySkeleton } from '../components/Skeleton';
-import { fetchMonths, fetchTradeGroups, fetchTradeSubgroups, fetchDashboard, fetchKPIConfig } from '../api';
+import Header from '../components/layout/Header';
+import PerformanceSummary from '../components/dashboard/PerformanceSummary';
+import CategoryBlock from '../components/dashboard/CategoryBlock';
+import { SummarySkeleton, CategorySkeleton } from '../components/common/Skeleton';
+import { fetchMonths, fetchTradeGroups, fetchTradeSubgroups, fetchDashboard, fetchKPIConfig, fetchDrilldownConfig } from '../api';
 import { colors } from '../constants/colors';
 import { Loader2 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
-import InitialLoader from '../components/InitialLoader';
+import InitialLoader from '../components/common/InitialLoader';
 
 function Dashboard() {
     const { user } = useAuth();
@@ -17,6 +17,7 @@ function Dashboard() {
     const [tradeGroups, setTradeGroups] = useState({});
     const [tradeSubgroups, setTradeSubgroups] = useState({});
     const [kpiConfig, setKpiConfig] = useState({});
+    const [drilldownConfig, setDrilldownConfig] = useState({});
 
     const [selectedMonth, setSelectedMonth] = useState("");
     const [selectedGroup, setSelectedGroup] = useState("");
@@ -30,17 +31,19 @@ function Dashboard() {
     useEffect(() => {
         async function loadMeta() {
             try {
-                const [mdata, gdata, sdata, kdata] = await Promise.all([
+                const [mdata, gdata, sdata, kdata, ddata] = await Promise.all([
                     fetchMonths(),
                     fetchTradeGroups(),
                     fetchTradeSubgroups(),
-                    fetchKPIConfig()
+                    fetchKPIConfig(),
+                    fetchDrilldownConfig()
                 ]);
 
                 setMonths(mdata);
                 setTradeGroups(gdata);
                 setTradeSubgroups(sdata);
                 setKpiConfig(kdata);
+                setDrilldownConfig(ddata);
 
                 if (mdata.length > 0) {
                     setSelectedMonth(mdata[0]);
@@ -172,6 +175,9 @@ function Dashboard() {
                                         overallScore={data.overall_score}
                                         kpiConfig={kpiConfig}
                                         activeTrade={selectedFilter}
+                                        tradeGroup={selectedGroup}
+                                        drilldownConfig={drilldownConfig}
+                                        selectedMonth={selectedMonth}
                                     />
                                 )}
                                 {data.categories["Procedural"] && (
@@ -186,6 +192,8 @@ function Dashboard() {
                                         kpiConfig={kpiConfig}
                                         activeTrade={selectedFilter}
                                         tradeGroup={selectedGroup}
+                                        drilldownConfig={drilldownConfig}
+                                        selectedMonth={selectedMonth}
                                     />
                                 )}
                             </div>
@@ -204,6 +212,8 @@ function Dashboard() {
                                         kpiConfig={kpiConfig}
                                         activeTrade={selectedFilter}
                                         tradeGroup={selectedGroup}
+                                        drilldownConfig={drilldownConfig}
+                                        selectedMonth={selectedMonth}
                                     />
                                 )}
                                 {data.categories["Vehicular"] && (
@@ -218,6 +228,8 @@ function Dashboard() {
                                         kpiConfig={kpiConfig}
                                         activeTrade={selectedFilter}
                                         tradeGroup={selectedGroup}
+                                        drilldownConfig={drilldownConfig}
+                                        selectedMonth={selectedMonth}
                                     />
                                 )}
                             </div>
@@ -236,6 +248,8 @@ function Dashboard() {
                                         kpiConfig={kpiConfig}
                                         activeTrade={selectedFilter}
                                         tradeGroup={selectedGroup}
+                                        drilldownConfig={drilldownConfig}
+                                        selectedMonth={selectedMonth}
                                     />
                                 )}
                             </div>

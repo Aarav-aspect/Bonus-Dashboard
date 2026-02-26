@@ -2,14 +2,14 @@ import React from 'react';
 import ReactDOM from 'react-dom';
 import { Card } from "@/components/ui/card"
 
-const Modal = ({ isOpen, onClose, title, children }) => {
+const Modal = ({ isOpen, onClose, title, children, noBackdrop = false }) => {
     if (!isOpen) return null;
 
     return ReactDOM.createPortal(
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6 modal-backdrop-enter">
             {/* Backdrop */}
             <div
-                className="fixed inset-0 bg-black/60 backdrop-blur-sm transition-opacity"
+                className={`fixed inset-0 transition-opacity ${noBackdrop ? 'bg-transparent' : 'bg-black/60 backdrop-blur-sm'}`}
                 onClick={onClose}
             />
 

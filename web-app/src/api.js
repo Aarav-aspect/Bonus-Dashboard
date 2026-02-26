@@ -129,3 +129,33 @@ export async function signOut() {
     // Fallback: redirect to login
     window.location.href = "/";
 }
+
+export async function fetchDriverScores(tradeGroup) {
+    const res = await fetch(`${API_BASE}/api/drilldown/drivers`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({ trade_group: tradeGroup }),
+    });
+    if (!res.ok) throw new Error("Failed to fetch driver scores");
+    return res.json();
+}
+
+export async function fetchDrilldownConfig() {
+    const res = await fetch(`${API_BASE}/config/drilldown`, {
+        credentials: "include"
+    });
+    if (!res.ok) throw new Error("Failed to fetch drilldown config");
+    return res.json();
+}
+
+export async function fetchReviewDetails(tradeGroup, month) {
+    const res = await fetch(`${API_BASE}/api/drilldown/reviews`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({ trade_group: tradeGroup, month }),
+    });
+    if (!res.ok) throw new Error("Failed to fetch review details");
+    return res.json();
+}

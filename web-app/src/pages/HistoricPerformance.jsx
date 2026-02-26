@@ -1,14 +1,14 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import Header from '../components/Header';
-import PerformanceSummary from '../components/PerformanceSummary';
-import CategoryBlock from '../components/CategoryBlock';
-import { SummarySkeleton, CategorySkeleton } from '../components/Skeleton';
+import Header from '../components/layout/Header';
+import PerformanceSummary from '../components/dashboard/PerformanceSummary';
+import CategoryBlock from '../components/dashboard/CategoryBlock';
+import { SummarySkeleton, CategorySkeleton } from '../components/common/Skeleton';
 import { fetchMonths, fetchTradeGroups, fetchTradeSubgroups, fetchDashboard } from '../api';
 import { Loader2, TrendingUp } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
-import PerformanceTrend from '../components/PerformanceTrend';
-import InitialLoader from '../components/InitialLoader';
+import PerformanceTrend from '../components/dashboard/PerformanceTrend';
+import InitialLoader from '../components/common/InitialLoader';
 
 function HistoricPerformance() {
     const { user } = useAuth();

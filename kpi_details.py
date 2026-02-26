@@ -54,9 +54,9 @@ def enrich_kpis(kpis, raw_metrics):
         val = enriched["Average Review Rating"]
         enriched["Average Review Rating"] = {
             "value": val,
-            "numerator": raw_metrics.get("count_reviews", 0),
+            "numerator": raw_metrics.get("count_reviews_prev", 0),
             "denominator": None,
-            "numerator_label": "Total Reviews",
+            "numerator_label": "Total Reviews (Prev Month)",
             "denominator_label": None,
             "result_label": "ARR"
         }
@@ -69,7 +69,7 @@ def enrich_kpis(kpis, raw_metrics):
             "numerator": raw_metrics.get("count_reviews_prev", 0),
             "denominator": raw_metrics.get("count_attended_prev", 0),
             "numerator_label": "Reviews (Prev Month)",
-            "denominator_label": "Completed Visits (Prev Month)"
+            "denominator_label": "Completed Jobs (Prev Month)"
         }
 
     # 7. Engineer Satisfaction %

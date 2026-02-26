@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { fetchMonths, fetchTradeGroups, fetchTradeSubgroups, fetchKPIConfig, fetchBonusPots, fetchDashboard } from '../api';
-import Header from '../components/Header';
+import Header from '../components/layout/Header';
 import { useAuth } from '../context/AuthContext';
 
 import { Card, CardContent } from "@/components/ui/card";

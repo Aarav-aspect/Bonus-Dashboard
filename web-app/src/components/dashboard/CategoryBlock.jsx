@@ -1,6 +1,8 @@
 import React, { useState, useEffect, useRef } from 'react';
-import KPICard from './KPICard';
-import Modal from './Modal';
+import KPICard from '../common/KPICard';
+import Modal from '../common/Modal';
+import DriversDetailModal from '../drilldown/DriversDetailModal';
+import ReviewsDetailModal from '../drilldown/ReviewsDetailModal';
 import { Card } from "@/components/ui/card"
 import {
     Car,
@@ -9,10 +11,31 @@ import {
     Smile,
     Zap,
     Activity,
-    Equal
+    Equal,
+    Users,
+    Loader2
 } from 'lucide-react';
+import { fetchDriverScores, fetchReviewDetails } from '../../api';
 
-const CategoryBlock = ({ title, kpis, kpiScores, categoryScore, bonusPot = 0, basePot = 0, overallScore = 1, kpiConfig = null, activeTrade = null, tradeGroup = null }) => {
+// Mirrors targets.py BONUS_SCORE_BANDS for client-side slab calculation
+const BONUS_SCORE_BANDS = [
+    { min: 90, max: 101, multiplier: 0.30 },
+    { min: 80, max: 90, multiplier: 0.20 },
+    { min: 70, max: 80, multiplier: 0.10 },
+    { min: 60, max: 70, multiplier: -0.10 },
+    { min: 50, max: 60, multiplier: -0.20 },
+    { min: 40, max: 50, multiplier: -0.30 },
+    { min: 30, max: 40, multiplier: -0.40 },
+    { min: 20, max: 30, multiplier: -0.50 },
+    { min: 10, max: 20, multiplier: -0.60 },
+];
+
+function getSlabMultiplier(score) {
+    const band = BONUS_SCORE_BANDS.find(b => score >= b.min && score < b.max);
+    return band ? band.multiplier : -0.60;
+}
+
+const CategoryBlock = ({ title, kpis, kpiScores, categoryScore, bonusPot = 0, basePot = 0, overallScore = 1, kpiConfig = null, activeTrade = null, tradeGroup = null, drilldownConfig = {}, selectedMonth = null }) => {
 
     // Resolve thresholds for a KPI — handles both static and dynamic (trade-based) configs.
     const resolveThresholds = (kpiName) => {
@@ -52,6 +75,9 @@ const CategoryBlock = ({ title, kpis, kpiScores, categoryScore, bonusPot = 0, ba
     };
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [selectedKpiDrilldown, setSelectedKpiDrilldown] = useState(null);
+    const [driversModalOpen, setDriversModalOpen] = useState(false);
+    const [driversData, setDriversData] = useState(null);
+    const [driversLoading, setDriversLoading] = useState(false);
     const scrollContainerRef = useRef(null);
 
     // Auto-scroll to "You Are Here"
@@ -150,7 +176,7 @@ const CategoryBlock = ({ title, kpis, kpiScores, categoryScore, bonusPot = 0, ba
                             />
                         </div>
                         <div className="text-xl font-black text-muted-foreground/50 whitespace-nowrap">
-                            +£{(overallScore > 0 ? (bonusPot * categoryScore) / (5 * overallScore) : 0).toFixed(0)}
+                            +£{(overallScore > 0 ? (bonusPot * categoryScore) / (overallScore * 5) : 0).toFixed(0)}
                             <span className="text-sm text-muted-foreground/30 font-bold ml-1">
                                 / £{((basePot * 1.3) / 5).toFixed(0)}
                             </span>
@@ -343,9 +369,57 @@ const CategoryBlock = ({ title, kpis, kpiScores, categoryScore, bonusPot = 0, ba
                                 </div>
                             );
                         })()}
+
+                        {/* View Details button — shown if this KPI has a drilldown config */}
+                        {selectedKpiDrilldown?.name && drilldownConfig[selectedKpiDrilldown.name] && tradeGroup && (
+                            <div className="mt-6 pt-4 border-t border-black/5 flex justify-center">
+                                <button
+                                    onClick={async () => {
+                                        setDriversLoading(true);
+                                        try {
+                                            const cfg = drilldownConfig[selectedKpiDrilldown.name];
+                                            let data;
+                                            if (cfg.data_source === 'reviews') {
+                                                data = await fetchReviewDetails(tradeGroup, selectedMonth);
+                                            } else {
+                                                data = await fetchDriverScores(tradeGroup);
+                                            }
+                                            setDriversData({ ...data, _source: cfg.data_source });
+                                            setDriversModalOpen(true);
+                                        } catch (e) {
+                                            console.error(e);
+                                        } finally {
+                                            setDriversLoading(false);
+                                        }
+                                    }}
+                                    disabled={driversLoading}
+                                    className="inline-flex items-center gap-2 px-5 py-2.5 bg-brand-blue text-white font-bold text-sm uppercase tracking-wider rounded-xl hover:bg-brand-blue/90 transition-colors shadow-sm disabled:opacity-50"
+                                >
+                                    {driversLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Users className="w-4 h-4" />}
+                                    View {drilldownConfig[selectedKpiDrilldown.name]?.title || 'Details'}
+                                </button>
+                            </div>
+                        )}
                     </div>
                 )}
             </Modal>
+
+            {/* Detail Modals — conditionally render based on data source */}
+            {driversData?._source === 'reviews' ? (
+                <ReviewsDetailModal
+                    isOpen={driversModalOpen}
+                    onClose={() => setDriversModalOpen(false)}
+                    data={driversData}
+                    tradeGroup={tradeGroup}
+                />
+            ) : (
+                <DriversDetailModal
+                    isOpen={driversModalOpen}
+                    onClose={() => setDriversModalOpen(false)}
+                    data={driversData}
+                    tradeGroup={tradeGroup}
+                />
+            )}
         </div>
     );
 };

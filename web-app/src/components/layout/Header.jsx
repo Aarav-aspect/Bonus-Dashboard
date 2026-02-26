@@ -1,5 +1,5 @@
 import { Link, useLocation } from 'react-router-dom';
-import logo from '../assets/Aspect_Logo.svg';
+import logo from '../../assets/Aspect_Logo.svg';
 import {
     Select,
     SelectContent,
@@ -9,9 +9,9 @@ import {
 } from "@/components/ui/select"
 import { Separator } from "@/components/ui/separator"
 
-import { signOut as apiSignOut } from '../api';
+import { signOut as apiSignOut } from '../../api';
 import { Button } from "@/components/ui/button"
-import { useAuth } from '../context/AuthContext';
+import { useAuth } from '../../context/AuthContext';
 
 const Header = ({
     months = [],

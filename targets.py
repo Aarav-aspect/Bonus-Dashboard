@@ -114,7 +114,7 @@ def get_ops_count_target(trade_group: str, month: str, year: int):
 SALES_TARGETS = {
     "HVac & Electrical": {
         2025: {"Nov": 10000, "Dec": 10500},
-        2026: {"Jan": 11000, "Feb": 750000, "Mar": 11500, "Apr": 11750, "May": 12000,
+        2026: {"Jan": 11000, "Feb": 564162, "Mar": 11500, "Apr": 11750, "May": 12000,
                "Jun": 12250, "Jul": 12500, "Aug": 12750, "Sep": 13000},
     },
     "Building Fabric": {
@@ -139,7 +139,7 @@ SALES_TARGETS = {
     },
     "Plumbing & Drainage": {
         2025: {"Nov": 12000, "Dec": 12500},
-        2026: {"Jan": 12750, "Feb": 13000, "Mar": 13250, "Apr": 13500, "May": 13750,
+        2026: {"Jan": 12750, "Feb": 890000, "Mar": 13250, "Apr": 13500, "May": 13750,
                "Jun": 14000, "Jul": 14250, "Aug": 14500, "Sep": 14750},
     },
 }
@@ -298,9 +298,9 @@ def get_category_score(category_name: str, kpis: dict, scoring_key: str) -> dict
 
 
 BONUS_SCORE_BANDS = [
-    {"min": 90, "max": 101, "multiplier": 0.15},
-    {"min": 80, "max": 90,  "multiplier": 0.15},
-    {"min": 70, "max": 80,  "multiplier": 0.00},
+    {"min": 90, "max": 101, "multiplier": 0.30},
+    {"min": 80, "max": 90,  "multiplier": 0.20},
+    {"min": 70, "max": 80,  "multiplier": 0.10},
     {"min": 60, "max": 70,  "multiplier": -0.10},
     {"min": 50, "max": 60,  "multiplier": -0.20},
     {"min": 40, "max": 50,  "multiplier": -0.30},

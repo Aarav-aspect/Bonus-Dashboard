@@ -1,5 +1,5 @@
 import React from 'react';
-import logo from '../assets/Aspect_Logo.svg';
+import logo from '../../assets/Aspect_Logo.svg';
 import './InitialLoader.css';
 
 const InitialLoader = ({ text = "Initializing Dashboard" }) => {

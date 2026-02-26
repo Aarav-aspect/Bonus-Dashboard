@@ -5,8 +5,9 @@ import HistoricPerformance from './pages/HistoricPerformance';
 import Login from './pages/Login';
 import Thresholds from './pages/Thresholds';
 import TradeTargets from './pages/TradeTargets';
+import KpiDetails from './pages/KpiDetails';
 import { AuthProvider } from './context/AuthContext';
-import ProtectedRoute from './components/ProtectedRoute';
+import ProtectedRoute from './components/layout/ProtectedRoute';
 import { Toaster } from 'sonner';
 
 function App() {
@@ -45,6 +46,14 @@ function App() {
             element={
               <ProtectedRoute>
                 <HistoricPerformance />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/kpi-details"
+            element={
+              <ProtectedRoute>
+                <KpiDetails />
               </ProtectedRoute>
             }
           />

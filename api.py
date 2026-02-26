@@ -17,7 +17,10 @@ from backend import (
     TRADE_SUBGROUPS,
     list_available_months,
     get_month_range,
+    get_previous_month_range,
     resolve_trades_for_filters,
+    get_merged_vehicular_data,
+    fetch_service_appointments_activity,
 )
 
 import json
@@ -32,6 +35,8 @@ from targets import (
 )
 
 import auth
+
+from kpi_drilldown_config import KPI_DRILLDOWNS
 
 # ------------------------------------------------------------
 # App
@@ -210,6 +215,13 @@ class DashboardRequest(BaseModel):
     trade_group: str
     trade_filter: Optional[str] = "All"
 
+class DrilldownDriversRequest(BaseModel):
+    trade_group: str
+
+class DrilldownReviewsRequest(BaseModel):
+    trade_group: str
+    month: str
+
 
 class DashboardResponse(BaseModel):
     overall_score: float
@@ -241,6 +253,12 @@ def get_months():
 # ------------------------------------------------------------
 # CONFIG ENDPOINTS
 # ------------------------------------------------------------
+
+@app.get("/config/drilldown")
+def get_drilldown_config():
+    """Returns the KPI drilldown configuration for the frontend."""
+    return KPI_DRILLDOWNS
+
 
 @app.get("/config/bonus-pots")
 def get_bonus_pots(request: Request):
@@ -370,6 +388,128 @@ def update_dynamic_threshold_all_groups(kpi_name: str, thresholds: List[float], 
     reload_kpi_config()
 
     return {"status": "success", "kpi": kpi_name, "applied_to": list(thresholds_by_trade.keys())}
+
+
+# ------------------------------------------------------------
+# DRILLDOWN ENDPOINTS
+# ------------------------------------------------------------
+
+@app.post("/api/drilldown/drivers")
+def get_driver_scores(data: DrilldownDriversRequest, request: Request):
+    """
+    Returns a list of drivers with their OptiDrive scores for a given trade group.
+    Used by the KPI Details page for 'Drivers with <7' drilldown.
+    """
+    user = auth.get_current_user(request)
+    if not user:
+        raise HTTPException(status_code=401, detail="Not authenticated")
+
+    import pandas as pd
+
+    df = get_merged_vehicular_data()
+    if df.empty:
+        return {"drivers": [], "trade_group": data.trade_group}
+
+    # Filter to trade group
+    df_trade = df[df["Trade Group"] == data.trade_group].copy()
+
+    # Find score column
+    score_col = None
+    for col in ["optidrive_indicator", "OptiDrive Score"]:
+        if col in df_trade.columns:
+            score_col = col
+            break
+
+    if not score_col or df_trade.empty:
+        return {"drivers": [], "trade_group": data.trade_group}
+
+    df_trade["score_numeric"] = pd.to_numeric(df_trade[score_col], errors="coerce")
+    df_trade = df_trade.dropna(subset=["score_numeric"])
+
+    # Scale to 0–10
+    df_trade["score_scaled"] = df_trade["score_numeric"] * 10
+
+    # Build results
+    drivers = []
+    for _, row in df_trade.iterrows():
+        name = row.get("Engineer Name", "") or row.get("Email", "Unknown")
+        score = round(float(row["score_scaled"]), 1)
+        drivers.append({
+            "name": name if name else "Unknown",
+            "score": score,
+            "below_threshold": score < 7.0,
+        })
+
+    # Sort: worst scores first
+    drivers.sort(key=lambda d: d["score"])
+
+    return {
+        "drivers": drivers,
+        "trade_group": data.trade_group,
+        "total_count": len(drivers),
+        "below_7_count": sum(1 for d in drivers if d["below_threshold"]),
+    }
+
+@app.post("/api/drilldown/reviews")
+def get_review_details(data: DrilldownReviewsRequest, request: Request):
+    """
+    Returns a list of Service Appointments with their review ratings
+    for a given trade group and month.
+    """
+    user = auth.get_current_user(request)
+    if not user:
+        raise HTTPException(status_code=401, detail="Not authenticated")
+
+    import pandas as pd
+
+    trades = resolve_trades_for_filters(data.trade_group, None)
+    trades_tuple = tuple(trades)
+    start_iso, end_iso = get_month_range(data.month)
+    # ARR is based on previous month's data
+    prev_start, prev_end = get_previous_month_range(start_iso)
+
+    df = fetch_service_appointments_activity(trades_tuple, prev_start, prev_end)
+    if df.empty:
+        return {"reviews": [], "trade_group": data.trade_group, "total_count": 0, "avg_rating": None}
+
+    # Only completed visits with a review
+    attended = df[df["Status"] == "Visit Complete"].copy()
+    attended["Review_Star_Rating__c"] = pd.to_numeric(attended["Review_Star_Rating__c"], errors="coerce")
+    with_review = attended[attended["Review_Star_Rating__c"].notna()].copy()
+
+    # Extract Job__r.Name from nested dictionary if it exists
+    if "Job__r" in with_review.columns:
+        with_review["Job__r.Name"] = with_review["Job__r"].apply(
+            lambda x: x.get("Name") if isinstance(x, dict) else None
+        )
+
+    # Deduplicate by Job__r.Name to match the actual metric logic
+    with_review = with_review.sort_values(by="Review_Star_Rating__c", ascending=False)
+    dedup_col_api = "Job__r.Name" if "Job__r.Name" in with_review.columns else "Job__c"
+    with_review = with_review.drop_duplicates(subset=[dedup_col_api], keep="first")
+
+    reviews = []
+    for _, row in with_review.iterrows():
+        # User requested SA Number instead of Job Number, but deduplication remains by job
+        sa_no = row.get("AppointmentNumber", "") or row.get("Id", "Unknown")
+        
+        rating = round(float(row["Review_Star_Rating__c"]), 1)
+        reviews.append({
+            "sa_number": str(sa_no), # Frontend still keys off 'sa_number' variable internally
+            "rating": rating,
+        })
+
+    # Sort by rating (lowest first)
+    reviews.sort(key=lambda r: r["rating"])
+
+    avg = round(with_review["Review_Star_Rating__c"].mean(), 1) if len(with_review) > 0 else None
+
+    return {
+        "reviews": reviews,
+        "trade_group": data.trade_group,
+        "total_count": len(reviews),
+        "avg_rating": avg,
+    }
 
 
 # ------------------------------------------------------------
