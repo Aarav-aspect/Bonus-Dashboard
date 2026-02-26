@@ -59,6 +59,7 @@ def get_cases_count_query(trades_str: str, start_iso: str, end_iso: str) -> str:
         WHERE Service_Resource__r.Name != NULL
         AND Service_Resource__r.Trade_Lookup__c IN ({trades_str})
         AND CreatedDate >= {start_iso} AND CreatedDate < {end_iso}
+        AND Case_Type__c IN ('Issue with work carried out', 'Engineer Related', 'Documentation')
     """
 
 def get_engineer_satisfaction_query(trades_str: str, start_iso: str, end_iso: str) -> str:
