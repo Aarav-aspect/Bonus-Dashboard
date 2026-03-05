@@ -96,12 +96,21 @@ if dist_path.exists():
 # ------------------------------------------------------------
 
 @app.get("/dashboard")
-async def dashboard_fallback():
+async def dashboard_fallback(request: Request):
     """
     If someone hits /dashboard on the backend port directly:
-    - In production: app.mount handles it (if dist exists).
+    - In production: Serve the frontend index.html if it exists.
     - In development: Redirect to the Vite port.
     """
+    dist_path = Path("web-app/dist")
+    index_file = dist_path / "index.html"
+    
+    # If the built frontend exists (production), serve it directly
+    if index_file.exists():
+        from fastapi.responses import FileResponse
+        return FileResponse(index_file)
+        
+    # Otherwise fallback to the configured frontend URL (development)
     return RedirectResponse(url=f"{auth.FRONTEND_URL}/dashboard")
 
 # ------------------------------------------------------------
@@ -199,14 +208,24 @@ def get_session(request: Request):
 
 
 @app.post("/api/auth/signout")
-def signout(response: Response):
+def signout(request: Request, response: Response):
     """Clear session cookie and return Microsoft logout URL."""
     response.delete_cookie(auth.SESSION_COOKIE_NAME, path="/")
+    
+    # Dynamically determine the frontend URL for post-logout redirect
+    scheme = request.headers.get("x-forwarded-proto", request.url.scheme)
+    host = request.headers.get("x-forwarded-host", request.url.hostname)
+    port = request.url.port
+    
+    if port and host in ["localhost", "127.0.0.1"]:
+        frontend_url = f"{scheme}://{host}:5173"
+    else:
+        frontend_url = f"{scheme}://{host}"
 
     # Microsoft logout endpoint
     ms_logout_url = (
         f"https://login.microsoftonline.com/{auth.MICROSOFT_TENANT_ID}/oauth2/v2.0/logout"
-        f"?post_logout_redirect_uri={auth.FRONTEND_URL}"
+        f"?post_logout_redirect_uri={frontend_url}"
     )
 
     return {"status": "success", "logout_url": ms_logout_url}
