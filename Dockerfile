@@ -31,5 +31,5 @@ COPY --from=frontend-builder /app/web-app/dist /app/web-app/dist
 EXPOSE 8080
 
 # Run the application using uvicorn
-# We use port 8080 as required by Cloud Run
-CMD ["uvicorn", "api:app", "--host", "0.0.0.0", "--port", "8080"]
+# We use the dynamic $PORT environment variable as required by Cloud Run
+CMD ["sh", "-c", "uvicorn api:app --host 0.0.0.0 --port ${PORT:-8080}"]
