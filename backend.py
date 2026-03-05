@@ -370,6 +370,7 @@ def get_webfleet_config() -> Optional[Dict]:
 def fetch_webfleet_drivers() -> pd.DataFrame:
     config = get_webfleet_config()
     if not config:
+        logger.warning("⚠️ Webfleet config missing or incomplete")
         return pd.DataFrame()
 
     params = {
@@ -390,10 +391,12 @@ def fetch_webfleet_drivers() -> pd.DataFrame:
             timeout=20,
         )
         if r.status_code != 200:
+            logger.error(f"❌ Webfleet drivers fetch failed: {r.status_code} - {r.text}")
             return pd.DataFrame()
 
         data = r.json()
         if not isinstance(data, list):
+            logger.warning(f"⚠️ Webfleet drivers returned non-list data: {type(data)}")
             return pd.DataFrame()
 
         rows = [{
@@ -402,8 +405,10 @@ def fetch_webfleet_drivers() -> pd.DataFrame:
             "Email": (d.get("email") or "").strip().lower(),
         } for d in data]
 
+        logger.info(f"✅ Fetched {len(rows)} drivers from Webfleet")
         return pd.DataFrame(rows)
-    except Exception:
+    except Exception as e:
+        logger.error(f"❌ Webfleet drivers exception: {e}")
         return pd.DataFrame()
 
 
@@ -433,11 +438,18 @@ def fetch_optidrive_scores_bulk() -> pd.DataFrame:
     try:
         r = requests.get(config["base_url"], params=params, timeout=60)
         if r.status_code != 200:
+            logger.error(f"❌ Webfleet optidrive fetch failed: {r.status_code} - {r.text}")
             return pd.DataFrame()
 
         data = r.json()
-        return pd.DataFrame(data) if isinstance(data, list) else pd.DataFrame()
-    except Exception:
+        if not isinstance(data, list):
+            logger.warning(f"⚠️ Webfleet optidrive returned non-list data: {type(data)}")
+            return pd.DataFrame()
+            
+        logger.info(f"✅ Fetched {len(data)} optidrive scores from Webfleet")
+        return pd.DataFrame(data)
+    except Exception as e:
+        logger.error(f"❌ Webfleet optidrive exception: {e}")
         return pd.DataFrame()
 
 
