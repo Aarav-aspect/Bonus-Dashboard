@@ -12,8 +12,8 @@ def enrich_kpis(kpis, raw_metrics):
             "value": val,
             "numerator": raw_metrics.get("estimate_production_count", 0),
             "denominator": raw_metrics.get("reactive_leads_count", 0),
-            "numerator_label": "Est. Production (raised by engineers)",
-            "denominator_label": "Reactive Leads (Closed)"
+            "numerator_label": "Estimates Raised (by Engineers)",
+            "denominator_label": "Reactive Leads Closed"
         }
 
     # 2. Estimate Conversion %
@@ -24,7 +24,7 @@ def enrich_kpis(kpis, raw_metrics):
             "numerator": raw_metrics.get("converted_fp_wo_count", 0),
             "denominator": raw_metrics.get("total_fp_wo_count", 0),
             "numerator_label": "Converted Estimates",
-            "denominator_label": "Estimates"
+            "denominator_label": "Total Estimates Raised"
         }
 
     # 3. FOC Conversion Rate %
@@ -34,8 +34,8 @@ def enrich_kpis(kpis, raw_metrics):
             "value": val,
             "numerator": raw_metrics.get("raised_from_foc_count", 0),
             "denominator": raw_metrics.get("foc_jobs_count", 0),
-            "numerator_label": "Jobs Raised",
-            "denominator_label": "FOC/£60 Estimates"
+            "numerator_label": "Converted Jobs raised from FOC",
+            "denominator_label": "Attended FOC/£60 Estimates"
         }
 
     # 4. Average Converted Estimate Value (£)
@@ -126,7 +126,7 @@ def enrich_kpis(kpis, raw_metrics):
             "numerator": raw_metrics.get("callback_jobs_count", 0),
             "denominator": raw_metrics.get("total_jobs", 0),
             "numerator_label": "Callbacks",
-            "denominator_label": "Total Jobs"
+            "denominator_label": "Total Attended Jobs"
         }
 
     # 12. Average Site Value (£)
@@ -207,7 +207,7 @@ def enrich_kpis(kpis, raw_metrics):
             "numerator": raw_metrics.get("tqr_total_count", 0),
             "denominator": raw_metrics.get("total_jobs", 0),
             "numerator_label": "Jobs with TQR",
-            "denominator_label": "Total Closed Jobs",
+            "denominator_label": "Total Attended Jobs",
         }
 
     # 19. TQR (Not Satisfied) Ratio %

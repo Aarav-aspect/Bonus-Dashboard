@@ -2,7 +2,7 @@ import React from 'react';
 import ReactDOM from 'react-dom';
 import { Card } from "@/components/ui/card"
 
-const Modal = ({ isOpen, onClose, title, children, noBackdrop = false }) => {
+const Modal = ({ isOpen, onClose, title, children, noBackdrop = false, contentClassName = '' }) => {
     if (!isOpen) return null;
 
     return ReactDOM.createPortal(
@@ -14,7 +14,7 @@ const Modal = ({ isOpen, onClose, title, children, noBackdrop = false }) => {
             />
 
             {/* Content */}
-            <Card className="relative z-50 w-full max-w-4xl max-h-[90vh] overflow-y-auto border-border shadow-2xl p-6 bg-white rounded-3xl modal-card-enter" onClick={(e) => e.stopPropagation()}>
+            <Card className={`relative z-50 w-full max-w-4xl max-h-[90vh] overflow-y-auto border-border shadow-2xl p-6 bg-white rounded-3xl modal-card-enter transition-all duration-300 ${contentClassName}`} onClick={(e) => e.stopPropagation()}>
                 <button
                     className="absolute right-4 top-4 rounded-full p-2 opacity-70 hover:opacity-100 hover:bg-muted transition-all cursor-pointer"
                     onClick={onClose}

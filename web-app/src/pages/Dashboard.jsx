@@ -97,21 +97,14 @@ function Dashboard() {
         setSelectedFilter("All");
     };
 
-    if (!selectedMonth) return <InitialLoader text="Preparing Your Dashboard..." />;
+    if (!selectedMonth || loading && !data) return <InitialLoader text="Preparing Your Dashboard..." />;
+    if (loading) return <InitialLoader text="Updating your data..." />;
 
     const currentSubgroups = tradeSubgroups[selectedGroup] || {};
 
     return (
         <div className="min-h-screen bg-white pb-20 relative">
-            {/* Global Refetch Spinner */}
-            {loading && data && (
-                <div className="fixed inset-0 z-50 flex items-center justify-center bg-white/40 backdrop-blur-[2px] pointer-events-none animate-in fade-in duration-300">
-                    <div className="bg-white p-6 rounded-3xl shadow-2xl border border-border flex flex-col items-center gap-4">
-                        <Loader2 className="w-10 h-10 text-primary animate-spin" />
-                        <span className="text-sm font-semibold text-primary">Updating your data...</span>
-                    </div>
-                </div>
-            )}
+
 
             <div className="container mx-auto px-6 py-8">
                 <Header
@@ -134,30 +127,16 @@ function Dashboard() {
                     </div>
                 )}
 
-                {loading && !data && (
-                    <main>
-                        <SummarySkeleton />
-                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8 items-start">
-                            <div className="flex flex-col gap-8">
-                                <CategorySkeleton />
-                                <CategorySkeleton />
-                            </div>
-                            <div className="flex flex-col gap-8">
-                                <CategorySkeleton />
-                                <CategorySkeleton />
-                            </div>
-                            <div className="flex flex-col gap-8">
-                                <CategorySkeleton />
-                            </div>
-                        </div>
-                    </main>
-                )}
+
 
                 {data && (
                     <main className={`animate-in fade-in duration-500 ${loading ? 'opacity-40 grayscale-[50%] blur-[1px] transition-all duration-300' : ''}`}>
                         <PerformanceSummary
                             overallScore={data.overall_score}
                             bonus={data.bonus}
+                            liveCollections={data.live_collections}
+                            liveLabour={data.live_labour}
+                            liveMaterials={data.live_materials}
                         />
 
                         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8 items-start">

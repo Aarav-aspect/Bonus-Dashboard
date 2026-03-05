@@ -8,6 +8,8 @@ venv/
 
 # Secrets
 secrets.toml
+cookies.txt
+*.txt
 
 # Node
 node_modules/

@@ -9,8 +9,8 @@ const DriversDetailModal = ({ isOpen, onClose, data, tradeGroup }) => {
         <Modal
             isOpen={isOpen}
             onClose={onClose}
-            title={`Drivers — ${tradeGroup}`}
             noBackdrop
+            title={`Drivers — ${tradeGroup}`}
         >
             <div className="flex flex-col gap-4 p-2">
                 {/* Summary row */}
@@ -40,8 +40,9 @@ const DriversDetailModal = ({ isOpen, onClose, data, tradeGroup }) => {
                             <tr className="border-b border-black/5">
                                 <th className="text-left p-3 font-bold text-muted-foreground uppercase tracking-wider text-[10px]">#</th>
                                 <th className="text-left p-3 font-bold text-muted-foreground uppercase tracking-wider text-[10px]">Name</th>
+                                <th className="text-left p-3 font-bold text-muted-foreground uppercase tracking-wider text-[10px]">Trade</th>
                                 <th className="text-left p-3 font-bold text-muted-foreground uppercase tracking-wider text-[10px]">Score</th>
-                                <th className="text-left p-3 font-bold text-muted-foreground uppercase tracking-wider text-[10px] w-1/4"></th>
+                                <th className="text-left p-3 font-bold text-muted-foreground uppercase tracking-wider text-[10px] w-1/5"></th>
                             </tr>
                         </thead>
                         <tbody>
@@ -53,6 +54,7 @@ const DriversDetailModal = ({ isOpen, onClose, data, tradeGroup }) => {
                                     <tr key={i} className={`border-b border-black/5 transition-colors hover:bg-muted/20 ${driver.below_threshold ? 'bg-red-50/40' : ''}`}>
                                         <td className="p-3 text-muted-foreground font-medium">{i + 1}</td>
                                         <td className="p-3 font-bold text-foreground">{driver.name}</td>
+                                        <td className="p-3 text-muted-foreground text-xs">{driver.trade}</td>
                                         <td className="p-3">
                                             <span className={`font-black ${scoreColor}`}>{driver.score.toFixed(1)}</span>
                                             <span className="text-muted-foreground/40 text-xs ml-0.5">/10</span>

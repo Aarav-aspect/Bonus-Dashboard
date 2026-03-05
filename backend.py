@@ -537,6 +537,35 @@ def fetch_customer_invoice_sales(
 
 
 @lru_cache(maxsize=128)
+def fetch_live_collections(trades: Tuple[str], start_iso: str, end_iso: str) -> Dict[str, float]:
+    start_date = start_iso[:10]
+    end_date = end_iso[:10]
+    
+    if not trades:
+        return {"collections": 0.0, "labour": 0.0, "materials": 0.0}
+        
+    group_list = ", ".join([f"'{t}'" for t in trades])
+    q = queries.get_live_collections_query(group_list, start_date, end_date)
+
+    try:
+        res = sf_client().query(q)
+        records = res.get("records", [])
+        if records:
+            total_coll = records[0].get("total_collected")
+            total_lab = records[0].get("total_labour")
+            total_mat = records[0].get("total_materials")
+            return {
+                "collections": float(total_coll) if total_coll else 0.0,
+                "labour": float(total_lab) if total_lab else 0.0,
+                "materials": float(total_mat) if total_mat else 0.0
+            }
+        return {"collections": 0.0, "labour": 0.0, "materials": 0.0}
+    except Exception as e:
+        logger.error(f"Live collections query error: {e}")
+        return {"collections": 0.0, "labour": 0.0, "materials": 0.0}
+
+
+@lru_cache(maxsize=128)
 def fetch_job_history_closed(start_iso: str, end_iso: str) -> pd.DataFrame:
     q = queries.get_job_history_closed_query(start_iso, end_iso)
     df = sf_query_df(q)
@@ -592,6 +621,17 @@ def fetch_service_appointments_month(
         return pd.DataFrame()
     trades_str = ",".join([f"'{t}'" for t in trades])
     q = queries.get_service_appointments_month_query(trades_str, start_iso, end_iso)
+    return sf_query_df(q)
+
+
+@lru_cache(maxsize=128)
+def fetch_reactive_sas(
+    trades: Tuple[str], start_iso: str, end_iso: str
+) -> pd.DataFrame:
+    if not trades:
+        return pd.DataFrame()
+    trades_str = ",".join([f"'{t}'" for t in trades])
+    q = queries.get_reactive_sas_query(trades_str, start_iso, end_iso)
     return sf_query_df(q)
 
 
@@ -669,20 +709,94 @@ WEBFLEET_EMAIL_MAP = {
     "stingray2303@yahoo.com":           "matthew.boyes@aspect.co.uk",
     "tjay751@icloud.com":               "robbie.wray@aspect.co.uk",
     "emanuelshehi16@gmail.com":         "emanuel.shehi@aspect.co.uk",
-    "deniz.okcay@aspect.co.uk":         "deniz.ockay@aspect.co.uk",   # typo fix
+    # deniz.okcay SF email is correct — old "typo fix" was wrong direction, removing it
+    # "deniz.okcay@aspect.co.uk":       "deniz.ockay@aspect.co.uk",   # REMOVED - broke matching
     "montel.o@hotmail.com":             "montel.brown@aspect.co.uk",
-    "shane.bradey@aspect.co.uk":        "shane.brady@aspect.co.uk",   # typo fix
+    # SF email stored with typo 'bradey' — keep as-is so it matches the SF record
+    # "shane.bradey@aspect.co.uk":      "shane.brady@aspect.co.uk",   # REMOVED - SF has 'bradey'
     "relliot0722@gmail.com":            "robert.elliott@aspect.co.uk",
-    "daniel.linkson@aspect.co.uk":      "amandeep.aspect.staging@gmail.com",
+    # daniel.linkson uses his aspect.co.uk email on Webfleet — remove old placeholder
+    # "daniel.linkson@aspect.co.uk":    "amandeep.aspect.staging@gmail.com",  # REMOVED
     "charlie.mitchel@aspect.co.uk":     "charlie.mitchell@aspect.co.uk",  # typo fix
-    "tristan.upton@aspect.co.uk":       "amandeep.singh@aspect.co.uk",
+    # tristan.upton uses his aspect.co.uk email on Webfleet — remove old placeholder
+    # "tristan.upton@aspect.co.uk":     "amandeep.singh@aspect.co.uk",  # REMOVED
     "ali.totali@aspect.co.uk":          "ali.tolali@aspect.co.uk",    # typo fix
-    "office@bugthugsuk.com":            "mike.houareau@aspect.co.uk",
+    # SF email for Houareau IS office@bugthugsuk.com — identity (no remap needed)
+    # "office@bugthugsuk.com":          "mike.houareau@aspect.co.uk",  # REMOVED - wrong target
     "ahmed.belafkih@aspet.co.uk":       "ahmed.belafkih@aspect.co.uk",  # typo fix
-    "bradley.wells@aspect.co.uk":       "amandeep.singh@aspect.co.uk",
+    # bradley.wells uses his aspect.co.uk email on Webfleet — remove old placeholder
+    # "bradley.wells@aspect.co.uk":     "amandeep.singh@aspect.co.uk",  # REMOVED
     "lukejcashin@gmail.com":            "luke.cashin@aspect.co.uk",
     "lukasz.zarebaasp@aspect.co.uk":    "amandeep.singh@aspect.co.uk",
     "aspect70@aspect.co.uk":            "patrick.read@aspect.co.uk",
+
+    # --- Added from ops_not_on_webfleet audit (2026-03-05) ---
+    # Igor Bochentin uses Mohamed Khalifa's Webfleet account
+    "mohamed.khalifa@aspect.co.uk":     "igor.bochentin@aspect.co.uk",
+    # Damp & Mould
+    "danielnics@hotmail.co.uk":         "daniel.nichols@aspect.co.uk",
+    "popedward116@gmail.com":           "simon.farthing@aspect.co.uk",
+
+    # Drainage
+    "tristanupton@hotmail.co.uk":       "tristan.upton@aspect.co.uk",
+    "blake.benson84@gmail.com":         "blake.benson@aspect.co.uk",
+    "bradleywells1983.bw@gmail.com":    "bradley.wells@aspect.co.uk",
+    "aarongj.love@hotmail.com":         "aaron.love@aspect.co.uk",
+    "wbrac.1745@gmail.com":             "warren.bracewell@aspect.co.uk",
+    "maxxfurnell@gmail.com":            "max.furnell@aspect.co.uk",
+    "harrybracewell012@googlemail.com": "harry.bracewell@aspect.co.uk",
+    "alexguvenler@gmail.com":           "alex.guvenler@aspect.co.uk",
+    "tomdavies461@gmail.com":           "tom.davies@aspect.co.uk",
+    "harveygoldring96@icloud.com":      "harvey.goldring@aspect.co.uk",
+    "shane_brady87@hotmail.com":        "shane.bradey@aspect.co.uk",
+
+    # Electrical
+    "redqos121@gmail.com":              "redi.qosja@aspect.co.uk",
+    "astevey17@hotmail.co.uk":          "steve.freitas@aspect.co.uk",
+    "elushmillion@icloud.com":          "emiljan.lushja@aspect.co.uk",
+    "jordanleemcfeeters@yahoo.com":     "jordan.mcfeeters@aspect.co.uk",
+
+    # Fire Safety
+    "damienf.kfc@contractor.net":       "damien.fraser@aspect.co.uk",
+    "touchoftimber@yahoo.com":          "james.teka@aspect.co.uk",
+
+    # Gas
+    "deepac.naidu@gmail.com":           "deepac.naidu@aspect.co.uk",
+    "onuraraz@icloud.com":              "onur.araz@aspect.co.uk",
+    "tannerhillyard@hotmail.com":       "tanner.hillyard@aspect.co.uk",
+    "ashleyflash@hotmail.co.uk":        "ashley.flash@aspect.co.uk",
+    "mundayconnah@gmail.com":           "connah.munday@aspect.co.uk",
+    "mohamed_munye@hotmail.co.uk":      "igor.bochentin@aspect.co.uk",
+
+    # HVAC
+    "jackbalchin57@gmail.com":          "jack.ball@aspect.co.uk",
+
+    # Leak Detection
+    "denizinator@live.co.uk":           "deniz.okcay@aspect.co.uk",
+    "joe.stedman@aspect.co.uk":         "joe.stedman@aspect.co.uk",   # case-fix
+    "lukelazar89@gmail.com":            "luke.lazar@aspect.co.uk",
+    "mclean_86@icloud.com":             "james.mclean@aspect.co.uk",
+    "idsystems@live.co.uk":             "michael.hall@aspect.co.uk",
+    "scottsmith9696@hotmail.co.uk":     "scott.smith@aspect.co.uk",
+    "ollydealey@gmail.com":             "oliver.dealey@aspect.co.uk",
+
+    # Multi / Building Fabric
+    "arroncox64@yahoo.co.uk":           "aaron.cox@aspect.co.uk",
+
+    # Pest Control (already mapped via office@bugthugsuk.com above)
+
+    # Plumbing
+    "willoughby172@hotmail.co.uk":      "william.hosford@aspect.co.uk",
+    "camara0081@gmail.com":             "pedro.camara@aspect.co.uk",
+    "steve_j135@hotmail.com":           "steven.hayden@aspect.co.uk",
+    "dsestanovich@hotmail.com":         "daniel.sestanovich@aspect.co.uk",
+
+    # Roofing
+    "bradfilby@hotmail.com":            "bradley.filby@aspect.co.uk",
+    "linksondaniel@gmail.com":          "daniel.linkson@aspect.co.uk",
+
+    # Waste Clearance
+    "swedigere@gmail.com":              "samuel.gebregziabiher@aspect.co.uk",
 }
 
 def get_merged_vehicular_data() -> pd.DataFrame:
@@ -715,18 +829,17 @@ def get_merged_vehicular_data() -> pd.DataFrame:
         lambda e: WEBFLEET_EMAIL_MAP.get(e, e)
     )
 
-    if not df_engineers.empty:
-        df_engineers["Email_Lower"] = (
-            df_engineers["Email"].astype(str).str.lower().str.strip()
-        )
-        df_merged = df_merged.merge(
-            df_engineers[["Email_Lower", "Trade Group", "Engineer Name"]],
-            on="Email_Lower",
-            how="left",
-        )
-    else:
-        df_merged["Trade Group"] = "Unknown"
-        df_merged["Engineer Name"] = ""
+    if df_engineers.empty:
+        return pd.DataFrame()
+
+    df_engineers["Email_Lower"] = (
+        df_engineers["Email"].astype(str).str.lower().str.strip()
+    )
+    df_merged = df_merged.merge(
+        df_engineers[["Email_Lower", "Trade Group", "Trade_Lookup__c", "Engineer Name"]],
+        on="Email_Lower",
+        how="inner",
+    )
 
     df_merged["Trade Group"] = df_merged["Trade Group"].fillna("Unknown")
     df_merged = df_merged.drop(columns=["driverno_clean", "Email_Lower"], errors="ignore")
@@ -791,6 +904,7 @@ def compute_kpis(
     start_iso: str,
     end_iso: str,
     scoring_key: str = None,
+    bonus_trade: str = None,
 ) -> dict:
     """
     High-level KPI computation:
@@ -904,6 +1018,12 @@ def compute_kpis(
         df_sa_month_all["CreatedDate"] = pd.to_datetime(
             df_sa_month_all["CreatedDate"], errors="coerce"
         )
+        # Flatten Job__r.Site_Id__c from nested dict
+        if "Job__r" in df_sa_month_all.columns:
+            df_sa_month_all["Site_Id__c"] = (
+                df_sa_month_all["Job__r"]
+                .apply(lambda x: x.get("Site_Id__c") if isinstance(x, dict) else None)
+            )
 
     unclosed_sa_count = 0
     unclosed_sa_total = 0  # denominator: all SAs excluding today
@@ -921,9 +1041,37 @@ def compute_kpis(
             ~df_sa_excl_today["Status"].isin(["Visit Complete", "Cancelled"])
         ].shape[0]
 
-    # Stage2-like fetch
-    df_jobs_closed = fetch_jobs_by_ids(tuple(job_ids_closed))
-    df_sa = fetch_service_appointments_by_job_ids(tuple(job_ids_closed))
+    # --- KPI ALIGNMENT: Baseline for Callbacks, TQR, and 6+ Hours ---
+    # We identify unique Job IDs that had a "Visit Complete" appointment this month.
+    df_sa_activity = stage1.get("sa_activity", pd.DataFrame())
+    attended_job_ids_month = set()
+    attended_reactive_job_ids = set()
+    
+    if not df_sa_activity.empty:
+        if "Job__r" in df_sa_activity.columns:
+            # Flatten Job Type if possible
+            df_sa_activity["Job__r.Type__c"] = df_sa_activity["Job__r"].apply(
+                lambda x: x.get("Type__c") if isinstance(x, dict) else None
+            )
+        
+        # All attended jobs (denominator for Callbacks and TQR)
+        attended_job_ids_month = set(
+            df_sa_activity[df_sa_activity["Status"] == "Visit Complete"]["Job__c"].astype(str).unique()
+        )
+        
+        # Reactive attended jobs (denominator for 6+ Hours)
+        attended_reactive_job_ids = set(
+            df_sa_activity[
+                (df_sa_activity["Status"] == "Visit Complete") &
+                (df_sa_activity["Job__r.Type__c"] == "Reactive")
+            ]["Job__c"].astype(str).unique()
+        )
+
+    # Combine closed job IDs and attended job IDs for detail fetch
+    job_ids_to_fetch = set(job_ids_closed).union(attended_job_ids_month)
+    
+    df_jobs_detailed = fetch_jobs_by_ids(tuple(job_ids_to_fetch))
+    df_sa = fetch_service_appointments_by_job_ids(tuple(job_ids_to_fetch))
 
     # Flatten Job__r.Final_WO_Is_the_Customer_Satisfied__c safely
     if "Job__r" in df_sa.columns:
@@ -935,7 +1083,7 @@ def compute_kpis(
     # --------------------------------------------------------
     # 3. KPI Computation
     # --------------------------------------------------------
-    df_jobs_closed = df_jobs_closed.rename(
+    df_jobs_detailed = df_jobs_detailed.rename(
         columns={
             "Id": "Job ID",
             "Name": "Job Name",
@@ -947,11 +1095,12 @@ def compute_kpis(
             "Raised_from_Job__c": "Raised From Job",
         }
     )
-    df_jobs_closed["Job_Duration__c"] = pd.to_numeric(
-        df_jobs_closed.get("Job_Duration__c"), errors="coerce"
+    df_jobs_detailed["Job_Duration__c"] = pd.to_numeric(
+        df_jobs_detailed.get("Job_Duration__c"), errors="coerce"
     )
 
-    df_closed = df_history.merge(df_jobs_closed, on="Job ID", how="left")
+    # Universe for Jobs Closed Metrics
+    df_closed = df_history.merge(df_jobs_detailed, on="Job ID", how="left")
     df_closed = df_closed[df_closed["Trade"].isin(trades)]
 
     if not df_sa.empty:
@@ -966,42 +1115,54 @@ def compute_kpis(
             df_sa["ArrivalWindowStartTime"], errors="coerce"
         )
 
-    # Reactive Leads / Estimate Production
-    reactive_leads = df_jobs_month[
-        (df_jobs_month["Type__c"] == "Reactive")
-        & (df_jobs_month["Status__c"] == "Closed")
-    ]
-    estimate_production = df_jobs_month[
-        (df_jobs_month["Type__c"] == "Fixed Price")
-        & (df_jobs_month["Created_By_Profile_Name__c"] == "Engineer Partner Community")
-    ]
-    reactive_leads_count = len(reactive_leads)
-    estimate_production_count = len(estimate_production)
+    # Reactive Leads baseline: use unique reactive jobs that had an attended visit this month
+    reactive_leads_count = len(attended_reactive_job_ids) if attended_reactive_job_ids else 0
+
+    # Numerator for Estimate Production: All Fixed Price Work Orders raised by engineers this month
+    estimate_production_count = 0
+    df_fp_wo_all = pd.DataFrame()
+    if not df_wo_month.empty:
+        df_fp_wo_all = df_wo_month[
+            (df_wo_month["Record_Type_Name__c"].astype(str).str.contains("Fixed Price", case=False, na=False)) &
+            (df_wo_month["Created_by_Profile_Name__c"] == "Engineer Partner Community")
+        ]
+        estimate_production_count = len(df_fp_wo_all)
+
     estimate_production_pct = (
         estimate_production_count / reactive_leads_count * 100
         if reactive_leads_count > 0
         else None
     )
 
-    # Average Site Value
-    df_sites = df_jobs_month[
-        (df_jobs_month["Is_Test_Job__c"] == False)
-        & (df_jobs_month["Site_Id__c"].notna())
-    ].copy()
-    total_charge = df_sites["Charge_Net__c"].sum()
-    site_count = df_sites["Site_Id__c"].nunique()
-    avg_site_value = (total_charge / site_count) if site_count else 0.0
+    # Average Site Value = Invoice Sales / Unique Sites from attended SAs
+    if not df_sa_month_all.empty and "Site_Id__c" in df_sa_month_all.columns:
+        sa_sites = df_sa_month_all[df_sa_month_all["Site_Id__c"].notna()]
+        site_count = sa_sites["Site_Id__c"].nunique()
+    else:
+        site_count = 0
+    avg_site_value = (invoice_sales / site_count) if site_count else 0.0
 
-    # FOC Conversion Rate
-    foc_jobs = df_jobs_month[
-        df_jobs_month["Charge_Policy__c"].isin(["FOC Estimate", "£60 Estimate"])
+    # FOC Conversion Rate (Attended Baseline)
+    # Denominator: Unique Jobs that had a "Visit Complete" SA this month AND have FOC/£60 policy
+    # Note: df_jobs_detailed was renamed: Id -> Job ID, Charge_Policy__c -> Charge Policy
+    attended_ids_list = list(attended_job_ids_month)
+    df_attended_foc = df_jobs_detailed[
+        (df_jobs_detailed["Job ID"].isin(attended_ids_list)) &
+        (df_jobs_detailed["Charge Policy"].isin(["FOC Estimate", "£60 Estimate"]))
     ]
-    foc_ids = set(foc_jobs["Id"].astype(str))
-    raised_from_foc = df_jobs_month[
-        df_jobs_month["Raised_from_Job__c"].astype(str).isin(foc_ids)
+    foc_attended_ids = set(df_attended_foc["Job ID"].astype(str))
+    
+    # Numerator: Converted jobs created this month that were raised from those specific attended FOC jobs
+    # We only count jobs with status "Approved by Client" or "Closed"
+    raised_from_attended_foc = df_jobs_month[
+        (df_jobs_month["Raised_from_Job__c"].astype(str).isin(foc_attended_ids)) &
+        (df_jobs_month["Status__c"].isin(["Approved by Client", "Closed", "Ongoing"]))
     ]
+    
+    # User asked to count ALL converted follow-on jobs (can exceed 100% if one visit raises multiple approved jobs)
     foc_conversion_rate = (
-        len(raised_from_foc) / len(foc_jobs) * 100 if len(foc_jobs) else 0.0
+        len(raised_from_attended_foc) / len(df_attended_foc) * 100 
+        if not df_attended_foc.empty else 0.0
     )
 
     month_key, year = infer_month_key_and_year_from_iso(start_iso)
@@ -1024,18 +1185,8 @@ def compute_kpis(
     total_cct = 0.0
     avg_converted_estimate_value = 0.0
     
-    if not df_wo_month.empty:
-        # 1. Filter for Fixed Price estimates created by Engineers
-        df_fp_wo_all = df_wo_month[
-            (
-                df_wo_month["Record_Type_Name__c"]
-                .astype(str)
-                .str.contains("Fixed Price", case=False, na=False)
-            )
-            & (
-                df_wo_month["Created_by_Profile_Name__c"] == "Engineer Partner Community"
-            )
-        ]
+    if not df_wo_month.empty and not df_fp_wo_all.empty:
+        # Use the common df_fp_wo_all defined above for Estimate Production
         total_fp_wo = len(df_fp_wo_all)
         
         # 2. Filter for those that were converted (Accepted/Live or Complete)
@@ -1061,8 +1212,8 @@ def compute_kpis(
     else:
         wo_count = 0
 
-    # Needed for TQR and Total Jobs calculations later
-    job_ids_month = df_closed["Job ID"].astype(str).unique().tolist()
+    # Baseline for Callbacks and TQR: Unique jobs with Attended SAs (Visit Complete)
+    job_ids_month = list(attended_job_ids_month)
 
     df_sa_activity = stage1["sa_activity"]
     if not df_sa_activity.empty:
@@ -1181,7 +1332,9 @@ def compute_kpis(
     # --------------------------------------------------------
 
     total_jobs = len(job_ids_month) if job_ids_month else 0
-    tqr_ratio_pct = None
+    tqr_total_count = 0
+    tqr_not_satisfied_count = 0
+    tqr_ratio_pct = 0.0 if total_jobs > 0 else None
     tqr_not_satisfied_ratio_pct = None
 
     if not df_sa.empty and job_ids_month:
@@ -1220,7 +1373,9 @@ def compute_kpis(
         comment = str(row.get("Customer Comment") or "").lower()
         return ("callback" in comment) or ("call back" in comment) or (cp == "call back")
     
-    callback_jobs_count = int(df_closed.apply(detect_callback, axis=1).sum())
+    # Filter detailed jobs to only those that were attended this month
+    df_attended_month = df_jobs_detailed[df_jobs_detailed["Job ID"].isin(job_ids_month)]
+    callback_jobs_count = int(df_attended_month.apply(detect_callback, axis=1).sum())
     total_jobs_prev = fetch_jobs_created_and_closed_count(
         trades_tuple,
         cases_start_iso,
@@ -1239,11 +1394,16 @@ def compute_kpis(
         else None
     )
 
-    # Jobs 6+ Hours grouped by Status
-    jobs_6_plus_df = df_closed[
-        (df_closed["Job Type"] == "Reactive") & (df_closed["Job_Duration__c"] >= 6)
+    # Jobs 6+ Hours: Baseline is now Reactive Jobs Attended this Month (Visit Complete)
+    df_attended_reactive = df_jobs_detailed[
+        (df_jobs_detailed["Job ID"].isin(attended_reactive_job_ids)) &
+        (df_jobs_detailed["Job Type"] == "Reactive") &
+        (df_jobs_detailed["Trade"].isin(trades))
     ]
+    
+    jobs_6_plus_df = df_attended_reactive[df_attended_reactive["Job_Duration__c"] >= 6]
     jobs_6_plus_total = len(jobs_6_plus_df)
+    
     jobs_6_plus_by_status = {}
     if not jobs_6_plus_df.empty:
         status_counts = (
@@ -1251,7 +1411,7 @@ def compute_kpis(
         )
         jobs_6_plus_by_status = status_counts.to_dict()
 
-    reactive_jobs_count = len(df_closed[df_closed["Job Type"] == "Reactive"])
+    reactive_jobs_count = len(df_attended_reactive)
     jobs_6_plus_pct = (
         jobs_6_plus_total / reactive_jobs_count * 100 if reactive_jobs_count > 0 else 0.0
     )
@@ -1387,7 +1547,7 @@ def compute_kpis(
         category_scores[cat] = cat_res.get("category_score", 0.0) or 0.0
 
     # overall_result scored against the same scoring_key
-    overall_result = get_overall_score(kpis, scoring_key, trade_group_selected)
+    overall_result = get_overall_score(kpis, scoring_key, trade_group_selected, bonus_trade=bonus_trade)
     bonus = overall_result.get("bonus", {})
     
     multiplier = bonus.get("multiplier", 0)
@@ -1408,8 +1568,8 @@ def compute_kpis(
         "reactive_leads_count": reactive_leads_count,
         "converted_fp_wo_count": converted_fp_wo,
         "total_fp_wo_count": total_fp_wo,
-        "raised_from_foc_count": len(raised_from_foc),
-        "foc_jobs_count": len(foc_jobs),
+        "raised_from_foc_count": len(raised_from_attended_foc),
+        "foc_jobs_count": len(df_attended_foc),
         "total_converted_estimate_value": total_cct,
         "converted_estimate_count": wo_count,
         
@@ -1429,7 +1589,7 @@ def compute_kpis(
         "sales_target": sales_target,
         "callback_jobs_count": callback_jobs_count,
         "total_jobs": total_jobs,
-        "total_charge": total_charge,
+        "total_charge": invoice_sales,
         "site_count": site_count,
         "late_count": late_count,
         "service_appts": service_appts,
@@ -1462,6 +1622,11 @@ def compute_kpis(
             if kpi_name in kpis:
                 cat_kpis[kpi_name] = kpis[kpi_name]
 
+    # --------------------------------------------------------
+    # Fetch Live Collections
+    # --------------------------------------------------------
+    live_data = fetch_live_collections(tuple(trades), start_iso, end_iso)
+
     return {
         "kpis": kpis,
         "kpi_scores": kpi_scores,
@@ -1470,4 +1635,7 @@ def compute_kpis(
         "overall_score": float(overall_result.get("overall_score", 0.0)),
         "bonus": bonus,
         "jobs_6_plus_by_status": jobs_6_plus_by_status,
+        "live_collections": live_data["collections"],
+        "live_labour": live_data["labour"],
+        "live_materials": live_data["materials"],
     }

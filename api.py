@@ -21,6 +21,12 @@ from backend import (
     resolve_trades_for_filters,
     get_merged_vehicular_data,
     fetch_service_appointments_activity,
+    fetch_service_resources,
+    fetch_service_appointments_month,
+    fetch_job_history_closed,
+    fetch_jobs_by_ids,
+    fetch_service_appointments_by_job_ids,
+    fetch_reactive_sas,
 )
 
 import json
@@ -217,10 +223,12 @@ class DashboardRequest(BaseModel):
 
 class DrilldownDriversRequest(BaseModel):
     trade_group: str
+    trade_filter: Optional[str] = "All"
 
 class DrilldownReviewsRequest(BaseModel):
     trade_group: str
     month: str
+    trade_filter: Optional[str] = "All"
 
 
 class DashboardResponse(BaseModel):
@@ -229,6 +237,9 @@ class DashboardResponse(BaseModel):
     categories: Dict[str, Dict[str, Any]]
     kpi_scores: Dict[str, Any]
     category_scores: Dict[str, Any]
+    live_collections: float = 0.0
+    live_labour: float = 0.0
+    live_materials: float = 0.0
 
 
 # ------------------------------------------------------------
@@ -296,8 +307,10 @@ def save_kpi_config(data: Dict[str, Any], request: Request):
     reload_kpi_config()
     return {"status": "success"}
 
+from fastapi import Body, Request, HTTPException
+
 @app.put("/config/thresholds/dynamic/{kpi_name}")
-def update_dynamic_threshold(kpi_name: str, trade_group: str, thresholds: List[float], request: Request):
+def update_dynamic_threshold(kpi_name: str, trade_group: str, request: Request, thresholds: List[float] = Body(...)):
     auth.require_role(request, ["admin", "manager"])
 
     """
@@ -343,7 +356,7 @@ def update_dynamic_threshold(kpi_name: str, trade_group: str, thresholds: List[f
 
 
 @app.put("/config/thresholds/dynamic/{kpi_name}/all")
-def update_dynamic_threshold_all_groups(kpi_name: str, thresholds: List[float], request: Request):
+def update_dynamic_threshold_all_groups(kpi_name: str, request: Request, thresholds: List[float] = Body(...)):
     auth.require_role(request, ["admin", "manager"])
 
     """
@@ -410,8 +423,12 @@ def get_driver_scores(data: DrilldownDriversRequest, request: Request):
     if df.empty:
         return {"drivers": [], "trade_group": data.trade_group}
 
-    # Filter to trade group
-    df_trade = df[df["Trade Group"] == data.trade_group].copy()
+    # Filter to specific trades via trade_filter
+    trades = resolve_trades_for_filters(data.trade_group, data.trade_filter)
+    if trades:
+        df_trade = df[df["Trade_Lookup__c"].isin(trades)].copy()
+    else:
+        df_trade = df[df["Trade Group"] == data.trade_group].copy()
 
     # Find score column
     score_col = None
@@ -438,6 +455,7 @@ def get_driver_scores(data: DrilldownDriversRequest, request: Request):
             "name": name if name else "Unknown",
             "score": score,
             "below_threshold": score < 7.0,
+            "trade": str(row.get("Trade_Lookup__c", "Unknown"))
         })
 
     # Sort: worst scores first
@@ -449,6 +467,440 @@ def get_driver_scores(data: DrilldownDriversRequest, request: Request):
         "total_count": len(drivers),
         "below_7_count": sum(1 for d in drivers if d["below_threshold"]),
     }
+
+
+@app.post("/api/drilldown/ops-list")
+def get_ops_list(data: DrilldownDriversRequest, request: Request):
+    """
+    Returns the list of active ops (engineers) for a given trade group.
+    Shows their name and specific trade.
+    """
+    user = auth.get_current_user(request)
+    if not user:
+        raise HTTPException(status_code=401, detail="Not authenticated")
+
+    import pandas as pd
+    import traceback
+
+    try:
+        df_engineers = fetch_service_resources()
+        if df_engineers.empty:
+            return {"ops": [], "trade_group": data.trade_group, "total_count": 0}
+
+        # Resolve trade group and filter -> list of individual trades
+        trades = resolve_trades_for_filters(data.trade_group, data.trade_filter)
+        
+        if trades:
+            df_filtered = df_engineers[df_engineers["Trade_Lookup__c"].isin(trades)]
+        else:
+            df_filtered = df_engineers[df_engineers["Trade Group"] == data.trade_group]
+
+        ops = []
+        for _, row in df_filtered.iterrows():
+            name = row.get("Engineer Name", "") or "Unknown"
+            trade = str(row.get("Trade_Lookup__c", "Unknown"))
+            ops.append({"name": name, "trade": trade})
+
+        # Sort alphabetically by name
+        ops.sort(key=lambda o: o["name"])
+
+        return {
+            "ops": ops,
+            "trade_group": data.trade_group,
+            "total_count": len(ops),
+        }
+    except Exception as e:
+        traceback.print_exc()
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.post("/api/drilldown/unclosed-sas")
+def get_unclosed_sas(data: DrilldownReviewsRequest, request: Request):
+    """
+    Returns a list of unclosed Service Appointments for a given trade group and month.
+    """
+    user = auth.get_current_user(request)
+    if not user:
+        raise HTTPException(status_code=401, detail="Not authenticated")
+
+    import pandas as pd
+    import traceback
+
+    try:
+        trades = resolve_trades_for_filters(data.trade_group, data.trade_filter)
+        trades_tuple = tuple(trades)
+        start_iso, end_iso = get_month_range(data.month)
+
+        df_sa = fetch_service_appointments_month(trades_tuple, start_iso, end_iso)
+        if df_sa.empty:
+            return {"unclosed_sas": [], "trade_group": data.trade_group, "total_count": 0}
+
+        df_sa["ActualStartTime"] = pd.to_datetime(
+            df_sa.get("ActualStartTime"), errors="coerce", utc=True
+        )
+
+        today_date = pd.Timestamp.now(tz="UTC").normalize()
+        df_excl_today = df_sa[df_sa["ActualStartTime"].dt.normalize() < today_date]
+
+        # Filter for unclosed: NOT "Visit Complete" or "Cancelled"
+        df_unclosed = df_excl_today[
+            ~df_excl_today["Status"].isin(["Visit Complete", "Cancelled"])
+        ]
+
+        sas = []
+        for _, row in df_unclosed.iterrows():
+            sa_no = row.get("AppointmentNumber", "") or row.get("Id", "Unknown")
+            status = row.get("Status", "Unknown")
+            actual_start = row.get("ActualStartTime", None)
+            if pd.notna(actual_start):
+                actual_start_str = pd.Timestamp(actual_start).strftime("%d %b %Y, %H:%M")
+            else:
+                actual_start_str = "N/A"
+            sas.append({
+                "appointment_number": str(sa_no),
+                "status": str(status),
+                "actual_start_time": actual_start_str,
+            })
+
+        sas.sort(key=lambda s: s["appointment_number"])
+
+        return {
+            "unclosed_sas": sas,
+            "trade_group": data.trade_group,
+            "total_count": len(sas),
+        }
+    except Exception as e:
+        traceback.print_exc()
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.post("/api/drilldown/callback-jobs")
+def get_callback_jobs(data: DrilldownReviewsRequest, request: Request):
+    """
+    Returns a list of callback jobs for a given trade group and month.
+    """
+    user = auth.get_current_user(request)
+    if not user:
+        raise HTTPException(status_code=401, detail="Not authenticated")
+
+    import pandas as pd
+    import traceback
+
+    try:
+        trades = resolve_trades_for_filters(data.trade_group, data.trade_filter)
+        start_iso, end_iso = get_month_range(data.month)
+
+        # Fetch closed job history and job details
+        df_history = fetch_job_history_closed(start_iso, end_iso)
+        if df_history.empty:
+            return {"callback_jobs": [], "trade_group": data.trade_group, "total_count": 0}
+
+        # Rename to match compute_kpis convention
+        df_history = df_history.rename(columns={"ParentId": "Job ID"})
+
+        job_ids_closed = df_history["Job ID"].astype(str).unique().tolist()
+        df_jobs_closed = fetch_jobs_by_ids(tuple(job_ids_closed))
+        if df_jobs_closed.empty:
+            return {"callback_jobs": [], "trade_group": data.trade_group, "total_count": 0}
+
+        # Rename columns to match compute_kpis convention
+        df_jobs_closed = df_jobs_closed.rename(columns={
+            "Id": "Job ID",
+            "Name": "Job Name",
+            "Job_Type_Trade__c": "Trade",
+            "Type__c": "Job Type",
+            "Charge_Policy__c": "Charge Policy",
+            "Customer_Facing_Description__c": "Customer Comment",
+        })
+
+        df_closed = df_history.merge(df_jobs_closed, on="Job ID", how="left")
+        df_closed = df_closed[df_closed["Trade"].isin(trades)]
+
+        # Detect callbacks
+        def detect_callback(row):
+            cp = str(row.get("Charge Policy") or "").lower()
+            comment = str(row.get("Customer Comment") or "").lower()
+            return ("callback" in comment) or ("call back" in comment) or (cp == "call back")
+
+        df_callbacks = df_closed[df_closed.apply(detect_callback, axis=1)]
+
+        jobs = []
+        for _, row in df_callbacks.iterrows():
+            job_name = row.get("Job Name", "") or row.get("Job ID", "Unknown")
+            jobs.append({
+                "job_number": str(job_name),
+            })
+
+        jobs.sort(key=lambda j: j["job_number"])
+
+        return {
+            "callback_jobs": jobs,
+            "trade_group": data.trade_group,
+            "total_count": len(jobs),
+        }
+    except Exception as e:
+        traceback.print_exc()
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.post("/api/drilldown/reactive-6plus")
+def get_reactive_6plus(data: DrilldownReviewsRequest, request: Request):
+    """
+    Returns reactive SAs started this month where
+    ActualEndTime - ActualStartTime > 6 hours.
+    """
+    user = auth.get_current_user(request)
+    if not user:
+        raise HTTPException(status_code=401, detail="Not authenticated")
+
+    import pandas as pd
+    import traceback
+
+    try:
+        trades = resolve_trades_for_filters(data.trade_group, data.trade_filter)
+        trades_tuple = tuple(trades)
+        start_iso, end_iso = get_month_range(data.month)
+
+        df_sa = fetch_reactive_sas(trades_tuple, start_iso, end_iso)
+        if df_sa.empty:
+            return {"reactive_6plus": [], "trade_group": data.trade_group, "total_count": 0}
+
+        # Only count SAs that were actually attended (Visit Complete)
+        df_attended = df_sa[df_sa["Status"] == "Visit Complete"].copy()
+        if df_attended.empty:
+            return {"reactive_6plus": [], "trade_group": data.trade_group, "total_count": 0}
+
+        # Get unique Job IDs for these attended SAs
+        job_ids = tuple(df_attended["Job__c"].astype(str).unique())
+        
+        # Fetch detailed job info (specifically duration)
+        df_jobs = fetch_jobs_by_ids(job_ids)
+        if df_jobs.empty:
+            return {"reactive_6plus": [], "trade_group": data.trade_group, "total_count": 0}
+
+        # Ensure duration is numeric and filter for 6+ hours
+        df_jobs["Job_Duration__c"] = pd.to_numeric(df_jobs["Job_Duration__c"], errors="coerce")
+        df_6plus = df_jobs[df_jobs["Job_Duration__c"] >= 6].copy()
+
+        results = []
+        for _, row in df_6plus.iterrows():
+            job_name = row.get("Name", "Unknown")
+            duration = row.get("Job_Duration__c", 0.0)
+            
+            hours = int(duration)
+            mins = int((duration - hours) * 60)
+            duration_str = f"{hours}h {mins}m"
+            
+            results.append({
+                "appointment_number": str(job_name), # Keep key name for frontend compatibility (Job Name here)
+                "duration": duration_str,
+            })
+
+        results.sort(key=lambda r: r["appointment_number"])
+
+        return {
+            "reactive_6plus": results,
+            "trade_group": data.trade_group,
+            "total_count": len(results),
+        }
+    except Exception as e:
+        traceback.print_exc()
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.post("/api/drilldown/late-to-site")
+def get_late_to_site(data: DrilldownReviewsRequest, request: Request):
+    """
+    Returns engineers with their late SA count vs total SA count.
+    """
+    user = auth.get_current_user(request)
+    if not user:
+        raise HTTPException(status_code=401, detail="Not authenticated")
+
+    import pandas as pd
+    import traceback
+
+    try:
+        trades = resolve_trades_for_filters(data.trade_group, data.trade_filter)
+        trades_tuple = tuple(trades)
+        start_iso, end_iso = get_month_range(data.month)
+
+        df_sa = fetch_service_appointments_activity(trades_tuple, start_iso, end_iso)
+        if df_sa.empty:
+            return {"engineers": [], "trade_group": data.trade_group, "total_late": 0, "total_sas": 0}
+
+        df_sa["ActualStartTime"] = pd.to_datetime(df_sa.get("ActualStartTime"), errors="coerce")
+        df_sa["ArrivalWindowStartTime"] = pd.to_datetime(df_sa.get("ArrivalWindowStartTime"), errors="coerce")
+
+        # Flatten Allocated_Engineer__r.Name
+        if "Allocated_Engineer__r" in df_sa.columns:
+            df_sa["EngineerName"] = (
+                df_sa["Allocated_Engineer__r"]
+                .apply(lambda x: x.get("Name") if isinstance(x, dict) else None)
+            )
+        else:
+            df_sa["EngineerName"] = None
+
+        # Calculate late flag (same logic as compute_kpis: >30 min after arrival window)
+        valid = df_sa.dropna(subset=["ActualStartTime", "ArrivalWindowStartTime"]).copy()
+        valid["Late"] = (
+            (valid["ActualStartTime"] - valid["ArrivalWindowStartTime"]).dt.total_seconds() / 60 > 30
+        )
+
+        # Group by engineer
+        engineer_stats = {}
+        for _, row in valid.iterrows():
+            name = row.get("EngineerName") or "Unknown"
+            if name not in engineer_stats:
+                engineer_stats[name] = {"total": 0, "late": 0}
+            engineer_stats[name]["total"] += 1
+            if row["Late"]:
+                engineer_stats[name]["late"] += 1
+
+        engineers = []
+        for name, stats in engineer_stats.items():
+            engineers.append({
+                "engineer_name": name,
+                "late_count": stats["late"],
+                "total_count": stats["total"],
+                "summary": f"{stats['late']}/{stats['total']}",
+            })
+
+        engineers.sort(key=lambda e: e["late_count"], reverse=True)
+
+        total_late = sum(e["late_count"] for e in engineers)
+        total_sas = sum(e["total_count"] for e in engineers)
+
+        return {
+            "engineers": engineers,
+            "trade_group": data.trade_group,
+            "total_late": total_late,
+            "total_sas": total_sas,
+        }
+    except Exception as e:
+        traceback.print_exc()
+        raise HTTPException(status_code=500, detail=str(e))
+@app.post("/api/drilldown/cases")
+def get_cases_detail(data: DrilldownReviewsRequest, request: Request):
+    """
+    Returns individual cases for the previous month (matching Cases % logic).
+    """
+    user = auth.get_current_user(request)
+    if not user:
+        raise HTTPException(status_code=401, detail="Not authenticated")
+
+    import traceback
+
+    try:
+        trades = resolve_trades_for_filters(data.trade_group, data.trade_filter)
+        trades_tuple = tuple(trades)
+        start_iso, end_iso = get_month_range(data.month)
+        # Cases uses previous month
+        prev_start, prev_end = get_previous_month_range(start_iso)
+
+        trades_str = ",".join([f"'{t}'" for t in trades])
+        from backend import sf_query_df, queries
+        q = queries.get_cases_detail_query(trades_str, prev_start, prev_end)
+        df = sf_query_df(q)
+
+        cases = []
+        if not df.empty:
+            for _, row in df.iterrows():
+                sr = row.get("Service_Resource__r")
+                eng_name = sr.get("Name") if isinstance(sr, dict) else str(sr or "Unknown")
+                cases.append({
+                    "case_number": str(row.get("CaseNumber", "Unknown")),
+                    "case_type": str(row.get("Case_Type__c", "Unknown")),
+                    "engineer_name": eng_name,
+                })
+
+        cases.sort(key=lambda c: c["case_number"])
+
+        return {
+            "cases": cases,
+            "trade_group": data.trade_group,
+            "total_count": len(cases),
+        }
+    except Exception as e:
+        traceback.print_exc()
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.post("/api/drilldown/tqr-not-satisfied")
+def get_tqr_not_satisfied(data: DrilldownReviewsRequest, request: Request):
+    """
+    Returns jobs with TQR where customer was Not Satisfied.
+    """
+    user = auth.get_current_user(request)
+    if not user:
+        raise HTTPException(status_code=401, detail="Not authenticated")
+
+    import pandas as pd
+    import traceback
+
+    try:
+        trades = resolve_trades_for_filters(data.trade_group, data.trade_filter)
+        start_iso, end_iso = get_month_range(data.month)
+
+        df_history = fetch_job_history_closed(start_iso, end_iso)
+        if df_history.empty:
+            return {"tqr_jobs": [], "trade_group": data.trade_group, "total_count": 0}
+
+        df_history = df_history.rename(columns={"ParentId": "Job ID"})
+        job_ids_closed = df_history["Job ID"].astype(str).unique().tolist()
+
+        df_jobs = fetch_jobs_by_ids(tuple(job_ids_closed))
+        if df_jobs.empty:
+            return {"tqr_jobs": [], "trade_group": data.trade_group, "total_count": 0}
+
+        df_jobs = df_jobs.rename(columns={
+            "Id": "Job ID",
+            "Name": "Job Name",
+            "Job_Type_Trade__c": "Trade",
+        })
+        df_closed = df_history.merge(df_jobs, on="Job ID", how="left")
+        df_closed = df_closed[df_closed["Trade"].isin(trades)]
+        job_ids_month = df_closed["Job ID"].astype(str).unique().tolist()
+
+        # Fetch SAs for those jobs
+        df_sa = fetch_service_appointments_by_job_ids(tuple(job_ids_closed))
+        if df_sa.empty:
+            return {"tqr_jobs": [], "trade_group": data.trade_group, "total_count": 0}
+
+        # Flatten Final_WO_Is_the_Customer_Satisfied__c from Job__r
+        if "Job__r" in df_sa.columns:
+            df_sa["Final_WO_Is_the_Customer_Satisfied__c"] = (
+                df_sa["Job__r"]
+                .apply(lambda x: x.get("Final_WO_Is_the_Customer_Satisfied__c") if isinstance(x, dict) else None)
+            )
+
+        # Filter: TQR + Not Satisfied, in month's jobs
+        df_sa_tqr = df_sa[
+            (df_sa["Job__c"].astype(str).isin(job_ids_month))
+            & (df_sa["Post_Visit_Report_Check__c"] == "TQR")
+        ]
+        df_tqr_not_sat = df_sa_tqr[
+            df_sa_tqr["Final_WO_Is_the_Customer_Satisfied__c"] == "No"
+        ].drop_duplicates(subset=["Job__c"])
+
+        # Build job name lookup
+        job_name_map = df_jobs.drop_duplicates("Job ID").set_index("Job ID")["Job Name"].to_dict()
+
+        jobs = []
+        for _, row in df_tqr_not_sat.iterrows():
+            job_id = str(row.get("Job__c", ""))
+            job_name = job_name_map.get(job_id, job_id)
+            jobs.append({"job_name": str(job_name)})
+
+        jobs.sort(key=lambda j: j["job_name"])
+
+        return {
+            "tqr_jobs": jobs,
+            "trade_group": data.trade_group,
+            "total_count": len(jobs),
+        }
+    except Exception as e:
+        traceback.print_exc()
+        raise HTTPException(status_code=500, detail=str(e))
 
 @app.post("/api/drilldown/reviews")
 def get_review_details(data: DrilldownReviewsRequest, request: Request):
@@ -462,7 +914,7 @@ def get_review_details(data: DrilldownReviewsRequest, request: Request):
 
     import pandas as pd
 
-    trades = resolve_trades_for_filters(data.trade_group, None)
+    trades = resolve_trades_for_filters(data.trade_group, data.trade_filter)
     trades_tuple = tuple(trades)
     start_iso, end_iso = get_month_range(data.month)
     # ARR is based on previous month's data
@@ -550,7 +1002,7 @@ def get_dashboard(data: DashboardRequest, request: Request):
         if req_trade and req_trade != "All":
             threshold_key = req_trade
 
-        result = compute_kpis(req_group, trades, start_iso, end_iso, scoring_key=threshold_key)
+        result = compute_kpis(req_group, trades, start_iso, end_iso, scoring_key=threshold_key, bonus_trade=req_trade)
 
         return {
             "overall_score": result["overall_score"],
@@ -558,6 +1010,9 @@ def get_dashboard(data: DashboardRequest, request: Request):
             "categories": result["categories"],
             "kpi_scores": result["kpi_scores"],
             "category_scores": result["category_scores"],
+            "live_collections": result.get("live_collections", 0.0),
+            "live_labour": result.get("live_labour", 0.0),
+            "live_materials": result.get("live_materials", 0.0)
         }
 
     except Exception as e:

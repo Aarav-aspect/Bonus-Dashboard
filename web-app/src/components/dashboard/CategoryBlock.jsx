@@ -3,6 +3,13 @@ import KPICard from '../common/KPICard';
 import Modal from '../common/Modal';
 import DriversDetailModal from '../drilldown/DriversDetailModal';
 import ReviewsDetailModal from '../drilldown/ReviewsDetailModal';
+import OpsListModal from '../drilldown/OpsListModal';
+import UnclosedSAsModal from '../drilldown/UnclosedSAsModal';
+import CallbackJobsModal from '../drilldown/CallbackJobsModal';
+import Reactive6PlusModal from '../drilldown/Reactive6PlusModal';
+import TqrNotSatisfiedModal from '../drilldown/TqrNotSatisfiedModal';
+import LateToSiteModal from '../drilldown/LateToSiteModal';
+import CasesModal from '../drilldown/CasesModal';
 import { Card } from "@/components/ui/card"
 import {
     Car,
@@ -15,7 +22,7 @@ import {
     Users,
     Loader2
 } from 'lucide-react';
-import { fetchDriverScores, fetchReviewDetails } from '../../api';
+import { fetchDriverScores, fetchReviewDetails, fetchOpsList, fetchUnclosedSAs, fetchCallbackJobs, fetchReactive6Plus, fetchTqrNotSatisfied, fetchLateToSite, fetchCases } from '../../api';
 
 // Mirrors targets.py BONUS_SCORE_BANDS for client-side slab calculation
 const BONUS_SCORE_BANDS = [
@@ -97,6 +104,11 @@ const CategoryBlock = ({ title, kpis, kpiScores, categoryScore, bonusPot = 0, ba
                         return selectedKpiDrilldown.value <= (t.max ?? Infinity);
                     }
                 });
+
+                // If no threshold is met (worse than the lowest tier), fallback to the lowest score bucket
+                if (currentTierIndex === -1 && thresholds.length > 0) {
+                    currentTierIndex = thresholds.length - 1;
+                }
             }
 
             if (currentTierIndex !== -1 && scrollContainerRef.current.children) {
@@ -216,6 +228,7 @@ const CategoryBlock = ({ title, kpis, kpiScores, categoryScore, bonusPot = 0, ba
                 isOpen={!!selectedKpiDrilldown}
                 onClose={() => setSelectedKpiDrilldown(null)}
                 title={selectedKpiDrilldown?.name || "KPI Details"}
+                contentClassName={driversModalOpen ? 'blur-sm opacity-50 scale-[0.97]' : ''}
             >
                 {selectedKpiDrilldown && (
                     <div className="flex flex-col gap-6 p-4">
@@ -278,8 +291,8 @@ const CategoryBlock = ({ title, kpis, kpiScores, categoryScore, bonusPot = 0, ba
                                                 : selectedKpiDrilldown.name.includes('Rating')
                                                     ? selectedKpiDrilldown.value?.toFixed(1)
                                                     : selectedKpiDrilldown.name.includes('Attended')
-                                                        ? selectedKpiDrilldown.value?.toFixed(0)
-                                                        : `${selectedKpiDrilldown.value?.toFixed(1)}%`
+                                                        ? (selectedKpiDrilldown.value || 0).toFixed(0)
+                                                        : `${(selectedKpiDrilldown.value || 0).toFixed(1)}%`
                                             }
                                         </span>
                                     </div>
@@ -308,6 +321,7 @@ const CategoryBlock = ({ title, kpis, kpiScores, categoryScore, bonusPot = 0, ba
 
                                             // Find the highest-scoring threshold that is met.
                                             let currentTierIndex = -1;
+
                                             if (selectedKpiDrilldown.value !== null) {
                                                 // The list is sorted DESC by score.
                                                 // Iterating from top (100 pts) down to 0 pts.
@@ -319,6 +333,11 @@ const CategoryBlock = ({ title, kpis, kpiScores, categoryScore, bonusPot = 0, ba
                                                         return selectedKpiDrilldown.value <= (t.max ?? Infinity);
                                                     }
                                                 });
+
+                                                // If no threshold is met (worse than the lowest tier), fallback to the lowest score bucket
+                                                if (currentTierIndex === -1 && thresholds.length > 0) {
+                                                    currentTierIndex = thresholds.length - 1;
+                                                }
                                             }
 
                                             return thresholds.map((t, i) => {
@@ -380,8 +399,23 @@ const CategoryBlock = ({ title, kpis, kpiScores, categoryScore, bonusPot = 0, ba
                                             const cfg = drilldownConfig[selectedKpiDrilldown.name];
                                             let data;
                                             if (cfg.data_source === 'reviews') {
-                                                data = await fetchReviewDetails(tradeGroup, selectedMonth);
+                                                data = await fetchReviewDetails(tradeGroup, selectedMonth, activeTrade);
+                                            } else if (cfg.data_source === 'ops_list') {
+                                                data = await fetchOpsList(tradeGroup, activeTrade);
+                                            } else if (cfg.data_source === 'unclosed_sas') {
+                                                data = await fetchUnclosedSAs(tradeGroup, selectedMonth, activeTrade);
+                                            } else if (cfg.data_source === 'callback_jobs') {
+                                                data = await fetchCallbackJobs(tradeGroup, selectedMonth, activeTrade);
+                                            } else if (cfg.data_source === 'reactive_6plus') {
+                                                data = await fetchReactive6Plus(tradeGroup, selectedMonth, activeTrade);
+                                            } else if (cfg.data_source === 'tqr_not_satisfied') {
+                                                data = await fetchTqrNotSatisfied(tradeGroup, selectedMonth, activeTrade);
+                                            } else if (cfg.data_source === 'late_to_site') {
+                                                data = await fetchLateToSite(tradeGroup, selectedMonth, activeTrade);
+                                            } else if (cfg.data_source === 'cases') {
+                                                data = await fetchCases(tradeGroup, selectedMonth, activeTrade);
                                             } else {
+                                                // Note: Driver Scores API might need an update later if it relies on trade_filter
                                                 data = await fetchDriverScores(tradeGroup);
                                             }
                                             setDriversData({ ...data, _source: cfg.data_source });
@@ -407,6 +441,55 @@ const CategoryBlock = ({ title, kpis, kpiScores, categoryScore, bonusPot = 0, ba
             {/* Detail Modals — conditionally render based on data source */}
             {driversData?._source === 'reviews' ? (
                 <ReviewsDetailModal
+                    isOpen={driversModalOpen}
+                    onClose={() => setDriversModalOpen(false)}
+                    data={driversData}
+                    tradeGroup={tradeGroup}
+                />
+            ) : driversData?._source === 'ops_list' ? (
+                <OpsListModal
+                    isOpen={driversModalOpen}
+                    onClose={() => setDriversModalOpen(false)}
+                    data={driversData}
+                    tradeGroup={tradeGroup}
+                />
+            ) : driversData?._source === 'unclosed_sas' ? (
+                <UnclosedSAsModal
+                    isOpen={driversModalOpen}
+                    onClose={() => setDriversModalOpen(false)}
+                    data={driversData}
+                    tradeGroup={tradeGroup}
+                />
+            ) : driversData?._source === 'callback_jobs' ? (
+                <CallbackJobsModal
+                    isOpen={driversModalOpen}
+                    onClose={() => setDriversModalOpen(false)}
+                    data={driversData}
+                    tradeGroup={tradeGroup}
+                />
+            ) : driversData?._source === 'reactive_6plus' ? (
+                <Reactive6PlusModal
+                    isOpen={driversModalOpen}
+                    onClose={() => setDriversModalOpen(false)}
+                    data={driversData}
+                    tradeGroup={tradeGroup}
+                />
+            ) : driversData?._source === 'tqr_not_satisfied' ? (
+                <TqrNotSatisfiedModal
+                    isOpen={driversModalOpen}
+                    onClose={() => setDriversModalOpen(false)}
+                    data={driversData}
+                    tradeGroup={tradeGroup}
+                />
+            ) : driversData?._source === 'late_to_site' ? (
+                <LateToSiteModal
+                    isOpen={driversModalOpen}
+                    onClose={() => setDriversModalOpen(false)}
+                    data={driversData}
+                    tradeGroup={tradeGroup}
+                />
+            ) : driversData?._source === 'cases' ? (
+                <CasesModal
                     isOpen={driversModalOpen}
                     onClose={() => setDriversModalOpen(false)}
                     data={driversData}

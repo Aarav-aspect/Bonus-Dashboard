@@ -9,8 +9,8 @@ const ReviewsDetailModal = ({ isOpen, onClose, data, tradeGroup }) => {
         <Modal
             isOpen={isOpen}
             onClose={onClose}
-            title={`Reviews — ${tradeGroup}`}
             noBackdrop
+            title={`Reviews — ${tradeGroup}`}
         >
             <div className="flex flex-col gap-4 p-2">
                 {/* Summary row */}

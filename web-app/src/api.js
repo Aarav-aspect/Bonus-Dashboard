@@ -130,12 +130,12 @@ export async function signOut() {
     window.location.href = "/";
 }
 
-export async function fetchDriverScores(tradeGroup) {
+export async function fetchDriverScores(tradeGroup, tradeFilter = "All") {
     const res = await fetch(`${API_BASE}/api/drilldown/drivers`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         credentials: "include",
-        body: JSON.stringify({ trade_group: tradeGroup }),
+        body: JSON.stringify({ trade_group: tradeGroup, trade_filter: tradeFilter }),
     });
     if (!res.ok) throw new Error("Failed to fetch driver scores");
     return res.json();
@@ -149,13 +149,90 @@ export async function fetchDrilldownConfig() {
     return res.json();
 }
 
-export async function fetchReviewDetails(tradeGroup, month) {
+export async function fetchReviewDetails(tradeGroup, month, tradeFilter = "All") {
     const res = await fetch(`${API_BASE}/api/drilldown/reviews`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         credentials: "include",
-        body: JSON.stringify({ trade_group: tradeGroup, month }),
+        body: JSON.stringify({ trade_group: tradeGroup, month, trade_filter: tradeFilter }),
     });
     if (!res.ok) throw new Error("Failed to fetch review details");
+    return res.json();
+}
+
+export async function fetchOpsList(tradeGroup, tradeFilter = "All") {
+    const res = await fetch(`${API_BASE}/api/drilldown/ops-list`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({ trade_group: tradeGroup, trade_filter: tradeFilter }),
+    });
+    if (!res.ok) throw new Error("Failed to fetch ops list");
+    return res.json();
+}
+
+export async function fetchUnclosedSAs(tradeGroup, month, tradeFilter = "All") {
+    const res = await fetch(`${API_BASE}/api/drilldown/unclosed-sas`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({ trade_group: tradeGroup, month, trade_filter: tradeFilter }),
+    });
+    if (!res.ok) throw new Error("Failed to fetch unclosed SAs");
+    return res.json();
+}
+
+export async function fetchCallbackJobs(tradeGroup, month, tradeFilter = "All") {
+    const res = await fetch(`${API_BASE}/api/drilldown/callback-jobs`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({ trade_group: tradeGroup, month, trade_filter: tradeFilter }),
+    });
+    if (!res.ok) throw new Error("Failed to fetch callback jobs");
+    return res.json();
+}
+
+export async function fetchReactive6Plus(tradeGroup, month, tradeFilter = "All") {
+    const res = await fetch(`${API_BASE}/api/drilldown/reactive-6plus`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({ trade_group: tradeGroup, month, trade_filter: tradeFilter }),
+    });
+    if (!res.ok) throw new Error("Failed to fetch reactive 6+ data");
+    return res.json();
+}
+
+export async function fetchTqrNotSatisfied(tradeGroup, month, tradeFilter = "All") {
+    const res = await fetch(`${API_BASE}/api/drilldown/tqr-not-satisfied`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({ trade_group: tradeGroup, month, trade_filter: tradeFilter }),
+    });
+    if (!res.ok) throw new Error("Failed to fetch TQR not satisfied data");
+    return res.json();
+}
+
+export async function fetchLateToSite(tradeGroup, month, tradeFilter = "All") {
+    const res = await fetch(`${API_BASE}/api/drilldown/late-to-site`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({ trade_group: tradeGroup, month, trade_filter: tradeFilter }),
+    });
+    if (!res.ok) throw new Error("Failed to fetch late to site data");
+    return res.json();
+}
+
+export async function fetchCases(tradeGroup, month, tradeFilter = "All") {
+    const res = await fetch(`${API_BASE}/api/drilldown/cases`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({ trade_group: tradeGroup, month, trade_filter: tradeFilter }),
+    });
+    if (!res.ok) throw new Error("Failed to fetch cases");
     return res.json();
 }

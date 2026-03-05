@@ -185,7 +185,9 @@ def calculate_kpi_score(kpi_name: str, value: float, scoring_key: str = None) ->
             trade_thresholds = dyn["thresholds_by_trade"].get(scoring_key, [])
             scores = dyn.get("scores", [])
             for t, s in zip(trade_thresholds, scores):
-                if value >= t:
+                # Handle None in dynamic thresholds
+                t_val = t if t is not None else float("-inf")
+                if value >= t_val:
                     return {"score": s, "target_met": s == 100, "value": value, "threshold": {"min": t, "score": s}}
             return {"score": 0, "target_met": False, "value": value, "threshold": {"min": None, "score": 0}}
 
@@ -197,14 +199,27 @@ def calculate_kpi_score(kpi_name: str, value: float, scoring_key: str = None) ->
     score = 0
 
     if direction == "higher_is_better":
-        for t in sorted(thresholds, key=lambda x: x["min"], reverse=True):
-            if value >= t["min"]:
+        # Handle None in min: treat as -infinity for sorting and comparison
+        sorted_thresholds = sorted(
+            thresholds, 
+            key=lambda x: (x.get("min") if x.get("min") is not None else float("-inf")), 
+            reverse=True
+        )
+        for t in sorted_thresholds:
+            t_min = t.get("min") if t.get("min") is not None else float("-inf")
+            if value >= t_min:
                 matched = t
                 score = t["score"]
                 break
     elif direction == "lower_is_better":
-        for t in sorted(thresholds, key=lambda x: x["max"]):
-            if value <= t["max"]:
+        # Handle None in max: treat as infinity for sorting and comparison
+        sorted_thresholds = sorted(
+            thresholds, 
+            key=lambda x: (x.get("max") if x.get("max") is not None else float("inf"))
+        )
+        for t in sorted_thresholds:
+            t_max = t.get("max") if t.get("max") is not None else float("inf")
+            if value <= t_max:
                 matched = t
                 score = t["score"]
                 break
@@ -317,13 +332,22 @@ def get_bonus_multiplier(overall_score: float) -> float:
             return band["multiplier"]
     return 0.0
 
-def calculate_bonus(overall_score: float, bonus_group: str) -> dict:
+def calculate_bonus(overall_score: float, bonus_group: str, bonus_trade: str = None) -> dict:
     multiplier = get_bonus_multiplier(overall_score)
     pots = load_bonus_pots()
 
-    # Normalize key to canonical form
-    canonical_key = next((k for k in pots if k.lower() == bonus_group.lower()), bonus_group)
-    pot = pots.get(canonical_key, 969.25)
+    # Try trade-specific key first (e.g. "HVac & Electrical::Gas & Heating")
+    pot = None
+    if bonus_trade and bonus_trade != "All":
+        trade_key = f"{bonus_group}::{bonus_trade}"
+        canonical_trade_key = next((k for k in pots if k.lower() == trade_key.lower()), None)
+        if canonical_trade_key:
+            pot = pots.get(canonical_trade_key)
+
+    # Fall back to group key
+    if pot is None:
+        canonical_key = next((k for k in pots if k.lower() == bonus_group.lower()), bonus_group)
+        pot = pots.get(canonical_key, 969.25)
 
     bonus_value = pot * (1 + multiplier)
     return {"pot": pot, "multiplier": multiplier, "bonus_value": bonus_value}
@@ -332,10 +356,11 @@ def calculate_bonus(overall_score: float, bonus_group: str) -> dict:
 # Overall Score
 # ============================================================
 
-def get_overall_score(kpis: dict, scoring_key: str, bonus_group: str, weights: dict = None):
+def get_overall_score(kpis: dict, scoring_key: str, bonus_group: str, weights: dict = None, bonus_trade: str = None):
     """
     scoring_key: The key used to look up KPI thresholds (e.g. "Electrical" OR "HVac & Electrical")
     bonus_group: The key used to look up Bonus Pot (ALWAYS the Trade Group, e.g. "HVac & Electrical")
+    bonus_trade: Optional specific trade name for trade-specific bonus pot lookup
     """
     categories = ["Conversion", "Procedural", "Satisfaction", "Vehicular", "Productivity"]
     if weights is None:
@@ -353,8 +378,8 @@ def get_overall_score(kpis: dict, scoring_key: str, bonus_group: str, weights: d
 
     overall_score = float(weighted_sum / total_weight)
     
-    # Use bonus_group for Bonus Pot lookup
-    bonus = calculate_bonus(overall_score, bonus_group)
+    # Use bonus_group (and optional bonus_trade) for Bonus Pot lookup
+    bonus = calculate_bonus(overall_score, bonus_group, bonus_trade=bonus_trade)
 
     return {"overall_score": overall_score, "bonus": bonus}
 

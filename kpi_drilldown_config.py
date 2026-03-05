@@ -66,20 +66,93 @@ KPI_DRILLDOWNS = {
         ],
     },
 
-    # ── Add more drilldowns below ────────────────────────────────────────
-    # Example (uncomment and adapt when ready):
-    #
-    # "VCR Update %": {
-    #     "title": "VCR Submissions",
-    #     "data_source": "vcr",              # you'd create /api/drilldown/vcr
-    #     "columns": [
-    #         {"key": "name",       "label": "Engineer",     "type": "text"},
-    #         {"key": "submitted",  "label": "Submitted",    "type": "score", "max_value": 4},
-    #         {"key": "submitted",  "label": "",             "type": "bar",   "max_value": 4},
-    #     ],
-    #     "summary_cards": [
-    #         {"key": "total_count",    "label": "Total Engineers", "color": "neutral"},
-    #         {"key": "complete_count", "label": "Complete",        "color": "green"},
-    #     ],
-    # },
+    # ── Ops Count % ──────────────────────────────────────────────────────
+    "Ops Count %": {
+        "title": "Ops",
+        "data_source": "ops_list",               # maps to /api/drilldown/ops-list
+        "columns": [
+            {"key": "name",  "label": "Name",  "type": "text"},
+            {"key": "trade", "label": "Trade", "type": "text"},
+        ],
+        "summary_cards": [
+            {"key": "total_count", "label": "Total Ops", "color": "neutral"},
+        ],
+    },
+
+    # ── Unclosed SA % ────────────────────────────────────────────────────
+    "Unclosed SA %": {
+        "title": "SAs",
+        "data_source": "unclosed_sas",
+        "columns": [
+            {"key": "appointment_number", "label": "SA Number", "type": "text"},
+            {"key": "status",             "label": "Status",    "type": "text"},
+        ],
+        "summary_cards": [
+            {"key": "total_count",    "label": "Total Unclosed", "color": "red"},
+        ],
+    },
+
+    # ── Callback Jobs % ──────────────────────────────────────────────────
+    "Callback Jobs %": {
+        "title": "Callback Jobs",
+        "data_source": "callback_jobs",
+        "columns": [
+            {"key": "job_number", "label": "Job Number", "type": "text"},
+        ],
+        "summary_cards": [
+            {"key": "total_count", "label": "Total Callbacks", "color": "red"},
+        ],
+    },
+
+    # ── Reactive 6+ hours % ──────────────────────────────────────────────
+    "Reactive 6+ hours %": {
+        "title": "Reactive 6+ Hrs",
+        "data_source": "reactive_6plus",
+        "columns": [
+            {"key": "appointment_number", "label": "SA Number", "type": "text"},
+            {"key": "duration",           "label": "Duration (hrs)", "type": "text"},
+        ],
+        "summary_cards": [
+            {"key": "total_count", "label": "Total 6+ Hrs", "color": "red"},
+        ],
+    },
+
+    # ── TQR (Not Satisfied) Ratio % ──────────────────────────────────────
+    "TQR (Not Satisfied) Ratio %": {
+        "title": "TQR Not Satisfied",
+        "data_source": "tqr_not_satisfied",
+        "columns": [
+            {"key": "job_name", "label": "Job Name", "type": "text"},
+        ],
+        "summary_cards": [
+            {"key": "total_count", "label": "Not Satisfied", "color": "red"},
+        ],
+    },
+
+    # ── Late to Site % ────────────────────────────────────────────────────
+    "Late to Site %": {
+        "title": "Late Engineers",
+        "data_source": "late_to_site",
+        "columns": [
+            {"key": "engineer_name", "label": "Engineer", "type": "text"},
+            {"key": "summary",       "label": "Late / Total", "type": "text"},
+        ],
+        "summary_cards": [
+            {"key": "total_late", "label": "Total Late", "color": "red"},
+            {"key": "total_sas",  "label": "Total SAs",  "color": "blue"},
+        ],
+    },
+
+    # ── Cases % ────────────────────────────────────────────────────────
+    "Cases %": {
+        "title": "Cases",
+        "data_source": "cases",
+        "columns": [
+            {"key": "case_number", "label": "Case Number", "type": "text"},
+            {"key": "case_type",   "label": "Case Type", "type": "text"},
+        ],
+        "summary_cards": [
+            {"key": "total_count", "label": "Total Cases", "color": "red"},
+        ],
+    },
 }

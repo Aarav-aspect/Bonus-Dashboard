@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { fetchTradeGroups, fetchBonusPots, saveBonusPots, fetchKPIConfig, saveKPIConfig, updateDynamicThreshold, updateDynamicThresholdAll } from '../api';
+import { fetchTradeGroups, fetchTradeSubgroups, fetchBonusPots, saveBonusPots, fetchKPIConfig, saveKPIConfig, updateDynamicThreshold, updateDynamicThresholdAll } from '../api';
 import Header from '../components/layout/Header';
 import { useAuth } from '../context/AuthContext';
 
@@ -19,18 +19,21 @@ import { Separator } from "@/components/ui/separator";
 const Thresholds = () => {
     // DATA
     const [tradeGroups, setTradeGroups] = useState({});
+    const [tradeSubgroups, setTradeSubgroups] = useState({}); // Stores trades per group
     const [bonusPots, setBonusPots] = useState({});
     const [kpiConfig, setKpiConfig] = useState({});
 
     // UI selections
     const [potGroup, setPotGroup] = useState("");
+    const [potTrade, setPotTrade] = useState("__ALL__");
     const [selectedGroup, setSelectedGroup] = useState("");
     const [selectedKpi, setSelectedKpi] = useState("");
     const [selectedTrade, setSelectedTrade] = useState(""); // For dynamic KPIs
 
     // Edit States
     const [newPotValue, setNewPotValue] = useState(0);
-    const [thresholds, setThresholds] = useState([]); // Array of {min/max, score} or just values for dynamic
+    const [thresholds, setThresholds] = useState([]);
+    const [gridThresholds, setGridThresholds] = useState({}); // Array of {min/max, score} or just values for dynamic
 
     const [loading, setLoading] = useState(true);
     const [message, setMessage] = useState(null);
@@ -38,12 +41,14 @@ const Thresholds = () => {
     useEffect(() => {
         async function load() {
             try {
-                const [g, pots, kpis] = await Promise.all([
+                const [g, sg, pots, kpis] = await Promise.all([
                     fetchTradeGroups(),
+                    fetchTradeSubgroups(),
                     fetchBonusPots(),
                     fetchKPIConfig()
                 ]);
                 setTradeGroups(g);
+                setTradeSubgroups(sg);
                 setBonusPots(pots);
                 setKpiConfig(kpis);
 
@@ -62,12 +67,18 @@ const Thresholds = () => {
         load();
     }, []);
 
-    // Sync Pot Value when group changes
+    // Sync Pot Value when group or trade changes
     useEffect(() => {
         if (potGroup && bonusPots) {
-            setNewPotValue(bonusPots[potGroup] || 0);
+            if (potTrade && potTrade !== "__ALL__") {
+                // Try trade-specific key first
+                const tradeKey = `${potGroup}::${potTrade}`;
+                setNewPotValue(bonusPots[tradeKey] ?? bonusPots[potGroup] ?? 0);
+            } else {
+                setNewPotValue(bonusPots[potGroup] || 0);
+            }
         }
-    }, [potGroup, bonusPots]);
+    }, [potGroup, potTrade, bonusPots]);
 
     // Available KPIs for selected group
     const availableKpis = Object.keys(kpiConfig).filter(kpi => {
@@ -87,15 +98,13 @@ const Thresholds = () => {
         }
     }, [selectedGroup, availableKpis]);
 
-    // Trade name mapping for dynamic KPIs (Matching backend `TRADE_GROUP_TO_SIMPLE_NAMES`)
-    // "All Trades" maps to the Group Name itself in the backend logic
-    const TRADE_GROUP_TO_SIMPLE_NAMES = {
-        "HVac & Electrical": ["HVAC", "Electrical"],
-        "Plumbing & Drainage": ["Plumbing"],
-        "Building Fabric": ["Plumbing"],
-        "Environmental Services": ["Plumbing"],
-        "Fire Safety": ["Plumbing"],
-        "Leak, Damp & Restoration": ["Plumbing"],
+    // Trade mapping for dynamic KPIs: Dashboard Detailed Trade -> Backend Config Key
+    const TRADE_TO_DYNAMIC_KEY = {
+        "Air Conditioning": "HVAC",
+        "Gas & Heating": "HVAC",
+        "Electrical": "Electrical",
+        "Plumbing": "Plumbing",
+        "Plumbing & Cold Water": "Plumbing"
     };
 
     // Load Thresholds when KPI or Trade changes
@@ -116,31 +125,56 @@ const Thresholds = () => {
                     } else {
                         setThresholds([]);
                     }
+                    setGridThresholds({});
                     return;
                 }
 
-                // Get allowed trades for this group
-                const allowedTrades = TRADE_GROUP_TO_SIMPLE_NAMES[selectedGroup] || [];
-                // Add "All Trades" option which maps to the Group Name (selectedGroup)
+                // Get allowed detail trades for this group
+                const allowedTrades = Object.keys(tradeSubgroups[selectedGroup] || {});
                 const effectiveTrades = [selectedGroup, ...allowedTrades];
 
                 // Ensure selectedTrade is valid for this group
                 let activeTrade = selectedTrade;
 
-                // If current selection is not valid for this group, default to Group Name ("All Trades")
+                // If current selection is not valid for this group, default to Group Name
                 if (!effectiveTrades.includes(activeTrade)) {
                     activeTrade = selectedGroup;
                     setSelectedTrade(activeTrade);
                 }
 
-                const existingThresholds = cfg.dynamic.thresholds_by_trade?.[activeTrade];
+                // Map the active UI trade to the config key (e.g. "Air Conditioning" -> "HVAC")
+                let configKey = activeTrade;
+                if (activeTrade !== selectedGroup && TRADE_TO_DYNAMIC_KEY[activeTrade]) {
+                    configKey = TRADE_TO_DYNAMIC_KEY[activeTrade];
+                }
 
-                if (existingThresholds && existingThresholds.length > 0) {
-                    setThresholds(existingThresholds);
-                } else if (cfg.dynamic.scores) {
-                    setThresholds(new Array(cfg.dynamic.scores.length).fill(0));
-                } else {
+                if (activeTrade === selectedGroup) {
+                    // GRID MODE
+                    const newGrid = {};
+                    const scoresLen = cfg.dynamic.scores ? cfg.dynamic.scores.length : 0;
+                    allowedTrades.forEach(t => {
+                        const ck = TRADE_TO_DYNAMIC_KEY[t] || t;
+                        const existing = cfg.dynamic.thresholds_by_trade?.[ck];
+                        if (existing && existing.length > 0) {
+                            newGrid[t] = [...existing];
+                        } else {
+                            newGrid[t] = new Array(scoresLen).fill(0);
+                        }
+                    });
+                    newGrid["All"] = new Array(scoresLen).fill('');
+                    setGridThresholds(newGrid);
                     setThresholds([]);
+                } else {
+                    const existingThresholds = cfg.dynamic.thresholds_by_trade?.[configKey];
+
+                    if (existingThresholds && existingThresholds.length > 0) {
+                        setThresholds(existingThresholds);
+                    } else if (cfg.dynamic.scores) {
+                        setThresholds(new Array(cfg.dynamic.scores.length).fill(0));
+                    } else {
+                        setThresholds([]);
+                    }
+                    setGridThresholds({});
                 }
             }
             // Static KPI - load regular thresholds
@@ -150,8 +184,10 @@ const Thresholds = () => {
                     return a.max - b.max;
                 });
                 setThresholds(sorted);
+                setGridThresholds({});
             } else {
                 setThresholds([]);
+                setGridThresholds({});
             }
         }
     }, [selectedKpi, selectedGroup, kpiConfig, selectedTrade]);
@@ -159,11 +195,13 @@ const Thresholds = () => {
 
     // HANDLERS
     const handleSavePot = async () => {
-        const updated = { ...bonusPots, [potGroup]: parseFloat(newPotValue) };
+        const key = (potTrade && potTrade !== "__ALL__") ? `${potGroup}::${potTrade}` : potGroup;
+        const updated = { ...bonusPots, [key]: parseFloat(newPotValue) };
         try {
             await saveBonusPots(updated);
             setBonusPots(updated);
-            setMessage({ type: 'success', text: `Saved bonus pot for ${potGroup}` });
+            const label = (potTrade && potTrade !== "__ALL__") ? `${potTrade} (${potGroup})` : potGroup;
+            setMessage({ type: 'success', text: `Saved bonus pot for ${label}` });
         } catch (e) {
             setMessage({ type: 'error', text: 'Failed to save bonus pot.' });
         }
@@ -175,24 +213,90 @@ const Thresholds = () => {
         setThresholds(newThresholds);
     };
 
+    const handleGridChange = (trade, scoreIdx, value) => {
+        const newGrid = { ...gridThresholds };
+        const parsed = parseFloat(value);
+        if (trade === "All") {
+            newGrid["All"] = [...newGrid["All"]];
+            newGrid["All"][scoreIdx] = value;
+        } else {
+            newGrid[trade] = [...newGrid[trade]];
+            newGrid[trade][scoreIdx] = isNaN(parsed) ? 0 : parsed;
+        }
+        setGridThresholds(newGrid);
+    };
+
     const handleSaveThresholds = async () => {
         const cfg = kpiConfig[selectedKpi];
+        const payload = thresholds; // The current state of thresholds to be saved
+        const newConfig = { ...kpiConfig }; // Create a mutable copy
 
         try {
             // Dynamic KPI - save trade-specific thresholds
             if (cfg.dynamic && cfg.dynamic.type === 'trade_based') {
+                const isAll = selectedTrade === selectedGroup; // "All Trades" option maps to the group name
                 if (selectedGroup === "__ALL__") {
                     // Save to ALL trade groups at once
-                    await updateDynamicThresholdAll(selectedKpi, thresholds);
-                    const updatedConfig = await fetchKPIConfig();
-                    setKpiConfig(updatedConfig);
+                    await updateDynamicThresholdAll(selectedKpi, payload);
+                    // Update local config for all trades in all groups
+                    Object.keys(tradeGroups).forEach(groupName => {
+                        const tradesForGroup = Object.keys(tradeSubgroups[groupName] || {});
+                        tradesForGroup.forEach(t => {
+                            const configKey = TRADE_TO_DYNAMIC_KEY[t] || t;
+                            if (!newConfig[selectedKpi].dynamic.thresholds_by_trade) {
+                                newConfig[selectedKpi].dynamic.thresholds_by_trade = {};
+                            }
+                            newConfig[selectedKpi].dynamic.thresholds_by_trade[configKey] = payload;
+                        });
+                        // Also update the group-level entry if it exists
+                        if (!newConfig[selectedKpi].dynamic.thresholds_by_trade) {
+                            newConfig[selectedKpi].dynamic.thresholds_by_trade = {};
+                        }
+                        newConfig[selectedKpi].dynamic.thresholds_by_trade[groupName] = payload;
+                    });
                     setMessage({ type: 'success', text: `Saved thresholds for ${selectedKpi} across all trade groups` });
+                } else if (isAll) {
+                    // We are in Grid Mode for a specific group
+                    const tradesForGroup = Object.keys(tradeSubgroups[selectedGroup] || {});
+
+                    if (!newConfig[selectedKpi].dynamic.thresholds_by_trade) {
+                        newConfig[selectedKpi].dynamic.thresholds_by_trade = {};
+                    }
+
+                    // Save each trade individually
+                    await Promise.all(tradesForGroup.map(async (t) => {
+                        const configKey = TRADE_TO_DYNAMIC_KEY[t] || t;
+                        const rawPayload = gridThresholds[t] || [];
+                        const tradePayload = rawPayload.map(val => {
+                            const num = parseFloat(val);
+                            return isNaN(num) ? 0 : num;
+                        });
+
+                        await updateDynamicThreshold(selectedKpi, configKey, tradePayload);
+                        newConfig[selectedKpi].dynamic.thresholds_by_trade[configKey] = tradePayload;
+                    }));
+
+                    // Optional: update the fallback group key (from the 'All' column)
+                    const rawAllPayload = gridThresholds["All"] || [];
+                    const allPayload = rawAllPayload.map(val => {
+                        const num = parseFloat(val);
+                        return isNaN(num) ? 0 : num;
+                    });
+                    newConfig[selectedKpi].dynamic.thresholds_by_trade[selectedGroup] = allPayload;
+                    await updateDynamicThresholdAll(selectedKpi, allPayload);
+
+                    setMessage({ type: 'success', text: `Saved thresholds for all trades in ${selectedGroup} for ${selectedKpi}` });
                 } else {
-                    await updateDynamicThreshold(selectedKpi, selectedTrade, thresholds);
-                    const updatedConfig = await fetchKPIConfig();
-                    setKpiConfig(updatedConfig);
+                    // Determine the config key for the specific trade
+                    const configKey = TRADE_TO_DYNAMIC_KEY[selectedTrade] || selectedTrade;
+                    await updateDynamicThreshold(selectedKpi, configKey, payload);
+                    if (!newConfig[selectedKpi].dynamic.thresholds_by_trade) {
+                        newConfig[selectedKpi].dynamic.thresholds_by_trade = {};
+                    }
+                    newConfig[selectedKpi].dynamic.thresholds_by_trade[configKey] = payload;
                     setMessage({ type: 'success', text: `Saved ${selectedTrade} thresholds for ${selectedKpi}` });
                 }
+                setKpiConfig(newConfig); // Update state with the modified config
             }
             // Static KPI - save regular thresholds (always global)
             else {
@@ -260,16 +364,33 @@ const Thresholds = () => {
                     </CardHeader>
 
                     <CardContent className="p-8">
-                        <div className="grid grid-cols-1 md:grid-cols-[1.5fr_1fr_auto] gap-6 items-end">
+                        <div className="grid grid-cols-1 md:grid-cols-[1.2fr_1.2fr_1fr_auto] gap-6 items-start">
                             <div className="space-y-2">
                                 <label className="text-sm font-bold text-muted-foreground uppercase tracking-wider">Trade Group</label>
-                                <Select value={potGroup} onValueChange={setPotGroup}>
+                                <Select value={potGroup} onValueChange={(v) => { setPotGroup(v); setPotTrade("__ALL__"); }}>
                                     <SelectTrigger className="h-11 font-bold bg-white">
                                         <SelectValue placeholder="Select Group" />
                                     </SelectTrigger>
                                     <SelectContent className="bg-white border-black/5 shadow-lg rounded-xl">
                                         {Object.keys(tradeGroups).map(g => (
                                             <SelectItem key={g} value={g} className="font-medium cursor-pointer">{g}</SelectItem>
+                                        ))}
+                                    </SelectContent>
+                                </Select>
+                            </div>
+
+                            <div className="space-y-2">
+                                <label className="text-sm font-bold text-muted-foreground uppercase tracking-wider">Trade</label>
+                                <Select value={potTrade} onValueChange={setPotTrade}>
+                                    <SelectTrigger className="h-11 font-bold bg-white">
+                                        <SelectValue placeholder="Select Trade" />
+                                    </SelectTrigger>
+                                    <SelectContent className="bg-white border-black/5 shadow-lg rounded-xl">
+                                        <SelectItem value="__ALL__" className="font-bold border-b border-border mb-1 pb-1 cursor-pointer">
+                                            All Trades
+                                        </SelectItem>
+                                        {Object.keys(tradeSubgroups[potGroup] || {}).map(t => (
+                                            <SelectItem key={t} value={t} className="font-medium cursor-pointer">{t}</SelectItem>
                                         ))}
                                     </SelectContent>
                                 </Select>
@@ -283,17 +404,19 @@ const Thresholds = () => {
                                     value={newPotValue}
                                     onChange={(e) => setNewPotValue(e.target.value)}
                                 />
-                                <div className="text-xs font-bold text-muted-foreground text-right mt-1">
+                                <div className="text-xs font-bold text-muted-foreground text-right">
                                     Max Payout (+30%): <span className="text-support-green">£{((parseFloat(newPotValue) || 0) * 1.3).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
                                 </div>
                             </div>
 
-                            <Button
-                                onClick={handleSavePot}
-                                className="h-11 px-8 font-bold bg-support-green hover:bg-support-green/90 text-white shadow-sm transition-all"
-                            >
-                                Save
-                            </Button>
+                            <div className="pt-[26px]">
+                                <Button
+                                    onClick={handleSavePot}
+                                    className="h-11 px-8 font-bold bg-support-green hover:bg-support-green/90 text-white shadow-sm transition-all"
+                                >
+                                    Save
+                                </Button>
+                            </div>
                         </div>
                     </CardContent>
                 </Card>
@@ -368,13 +491,10 @@ const Thresholds = () => {
                                                 All Trades ({selectedGroup})
                                             </SelectItem>
 
-                                            {/* Specific Trades */}
-                                            {Object.keys(currentKpiConfig.dynamic.thresholds_by_trade || {})
-                                                .filter(t => (TRADE_GROUP_TO_SIMPLE_NAMES[selectedGroup] || []).includes(t))
-                                                .map(t => (
-                                                    <SelectItem key={t} value={t} className="font-medium cursor-pointer pl-6">{t}</SelectItem>
-                                                ))
-                                            }
+                                            {/* Detailed Trades within the Group */}
+                                            {Object.keys(tradeSubgroups[selectedGroup] || {}).map(t => (
+                                                <SelectItem key={t} value={t} className="font-medium cursor-pointer pl-6">{t}</SelectItem>
+                                            ))}
                                         </SelectContent>
                                     </Select>
                                 </div>
@@ -389,12 +509,22 @@ const Thresholds = () => {
                                     </div>
                                 </div>
 
-                                <div className="border border-black/5 rounded-xl overflow-hidden shadow-sm">
-                                    <table className="w-full text-left border-collapse">
+                                <div className="border border-black/5 rounded-xl overflow-hidden shadow-sm overflow-x-auto">
+                                    <table className="w-full text-left border-collapse min-w-max">
                                         <thead className="bg-muted/30">
                                             <tr>
                                                 <th className="p-4 text-xs font-bold text-muted-foreground uppercase tracking-wider">Score Level</th>
-                                                <th className="p-4 text-xs font-bold text-muted-foreground uppercase tracking-wider">Threshold Value</th>
+                                                {selectedTrade === selectedGroup && selectedGroup !== "__ALL__" ? (
+                                                    // Grid Layout Headers
+                                                    <>
+                                                        <th className="p-4 text-xs font-bold text-brand-blue uppercase tracking-wider border-l border-black/5 bg-brand-blue/5">All ({selectedGroup})</th>
+                                                        {Object.keys(tradeSubgroups[selectedGroup] || {}).map(t => (
+                                                            <th key={t} className="p-4 text-xs font-bold text-muted-foreground uppercase tracking-wider border-l border-black/5">{t}</th>
+                                                        ))}
+                                                    </>
+                                                ) : (
+                                                    <th className="p-4 text-xs font-bold text-muted-foreground uppercase tracking-wider">Threshold Value</th>
+                                                )}
                                             </tr>
                                         </thead>
                                         <tbody>
@@ -406,18 +536,47 @@ const Thresholds = () => {
                                                         <td className="p-4">
                                                             <span className={`text-xl font-black ${scoreColorClass}`}>{score}%</span>
                                                         </td>
-                                                        <td className="p-4">
-                                                            <Input
-                                                                type="number"
-                                                                className="w-[150px] font-bold bg-white"
-                                                                value={thresholds[idx] || 0}
-                                                                onChange={(e) => {
-                                                                    const newThresholds = [...thresholds];
-                                                                    newThresholds[idx] = parseFloat(e.target.value);
-                                                                    setThresholds(newThresholds);
-                                                                }}
-                                                            />
-                                                        </td>
+
+                                                        {selectedTrade === selectedGroup && selectedGroup !== "__ALL__" ? (
+                                                            // Grid Layout Cells
+                                                            <>
+                                                                <td className="p-4 border-l border-black/5 bg-brand-blue/5">
+                                                                    <Input
+                                                                        type="number"
+                                                                        min={0}
+                                                                        step="any"
+                                                                        value={gridThresholds["All"]?.[idx] !== undefined ? gridThresholds["All"][idx] : ''}
+                                                                        onChange={(e) => handleGridChange("All", idx, e.target.value)}
+                                                                        className="w-[120px] font-black bg-white border-2 border-brand-blue/20 focus-visible:ring-brand-blue"
+                                                                    />
+                                                                </td>
+                                                                {Object.keys(tradeSubgroups[selectedGroup] || {}).map(t => (
+                                                                    <td key={t} className="p-4 border-l border-black/5">
+                                                                        <Input
+                                                                            type="number"
+                                                                            min={0}
+                                                                            step="any"
+                                                                            value={gridThresholds[t]?.[idx] !== undefined ? gridThresholds[t][idx] : ''}
+                                                                            onChange={(e) => handleGridChange(t, idx, e.target.value)}
+                                                                            className="w-[120px] font-bold bg-white"
+                                                                        />
+                                                                    </td>
+                                                                ))}
+                                                            </>
+                                                        ) : (
+                                                            <td className="p-4">
+                                                                <Input
+                                                                    type="number"
+                                                                    className="w-[150px] font-bold bg-white"
+                                                                    value={thresholds[idx] !== undefined ? thresholds[idx] : 0}
+                                                                    onChange={(e) => {
+                                                                        const newThresholds = [...thresholds];
+                                                                        newThresholds[idx] = parseFloat(e.target.value);
+                                                                        setThresholds(newThresholds);
+                                                                    }}
+                                                                />
+                                                            </td>
+                                                        )}
                                                     </tr>
                                                 );
                                             })}
