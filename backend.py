@@ -247,16 +247,41 @@ def infer_month_key_and_year_from_iso(start_iso: str):
 # ============================================================
 
 def get_secrets():
+    """
+    Read secrets from secrets.toml or environment variables.
+    In production, we prefer environment variables.
+    """
+    secrets = {}
     try:
-        with open("secrets.toml", "r") as f:
-            return toml.load(f)
-    except FileNotFoundError:
-        logger.warning("secrets.toml not found")
-        return {}
+        if os.path.exists("secrets.toml"):
+            with open("secrets.toml", "r") as f:
+                secrets = toml.load(f)
+    except Exception as e:
+        logger.warning(f"Error reading secrets.toml: {e}")
+
+    # Fallback to environment variables for Cloud Run/Production
+    if "salesforce" not in secrets:
+        secrets["salesforce"] = {}
+    
+    sf = secrets["salesforce"]
+    sf["username"] = os.getenv("SF_USERNAME", sf.get("username"))
+    sf["password"] = os.getenv("SF_PASSWORD", sf.get("password"))
+    sf["security_token"] = os.getenv("SF_SECURITY_TOKEN", sf.get("security_token"))
+    sf["domain"] = os.getenv("SF_DOMAIN", sf.get("domain", "login")) # default to login
+    
+    return secrets
 
 @lru_cache(maxsize=1)
 def sf_client() -> Salesforce:
-    s = get_secrets()["salesforce"]
+    secrets = get_secrets()
+    s = secrets.get("salesforce", {})
+    
+    # Validation
+    required = ["username", "password", "security_token"]
+    missing = [field for field in required if not s.get(field)]
+    if missing:
+        raise ValueError(f"Missing required Salesforce credentials: {', '.join(missing)}")
+
     session_id, instance = SalesforceLogin(
         username=s["username"],
         password=s["password"],

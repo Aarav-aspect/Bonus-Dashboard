@@ -1,47 +1,47 @@
 @font-face {
     font-family: 'Mont';
-    src: url('./MontRegular/MontRegular.woff2') format('woff2'),
-        url('./MontRegular/MontRegular.woff') format('woff');
+    src: url('/assets/MontRegular/MontRegular.woff2') format('woff2'),
+        url('/assets/MontRegular/MontRegular.woff') format('woff');
     font-weight: 400;
     font-style: normal;
 }
 
 @font-face {
     font-family: 'Mont';
-    src: url('./MontBold/MontBold.woff2') format('woff2'),
-        url('./MontBold/MontBold.woff') format('woff');
+    src: url('/assets/MontBold/MontBold.woff2') format('woff2'),
+        url('/assets/MontBold/MontBold.woff') format('woff');
     font-weight: 700;
     font-style: normal;
 }
 
 @font-face {
     font-family: 'Mont';
-    src: url('./MontSemiBold/MontSemiBold.woff2') format('woff2'),
-        url('./MontSemiBold/MontSemiBold.woff') format('woff');
+    src: url('/assets/MontSemiBold/MontSemiBold.woff2') format('woff2'),
+        url('/assets/MontSemiBold/MontSemiBold.woff') format('woff');
     font-weight: 600;
     font-style: normal;
 }
 
 @font-face {
     font-family: 'Mont';
-    src: url('./MontLight/MontLight.woff2') format('woff2'),
-        url('./MontLight/MontLight.woff') format('woff');
+    src: url('/assets/MontLight/MontLight.woff2') format('woff2'),
+        url('/assets/MontLight/MontLight.woff') format('woff');
     font-weight: 300;
     font-style: normal;
 }
 
 @font-face {
     font-family: 'Mont';
-    src: url('./MontThin/MontThin.woff2') format('woff2'),
-        url('./MontThin/MontThin.woff') format('woff');
+    src: url('/assets/MontThin/MontThin.woff2') format('woff2'),
+        url('/assets/MontThin/MontThin.woff') format('woff');
     font-weight: 100;
     font-style: normal;
 }
 
 @font-face {
     font-family: 'Mont';
-    src: url('./MontHeavy/MontHeavy.woff2') format('woff2'),
-        url('./MontHeavy/MontHeavy.woff') format('woff');
+    src: url('/assets/MontHeavy/MontHeavy.woff2') format('woff2'),
+        url('/assets/MontHeavy/MontHeavy.woff') format('woff');
     font-weight: 900;
     font-style: normal;
 }

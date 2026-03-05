@@ -9,7 +9,9 @@ venv/
 # Secrets
 secrets.toml
 cookies.txt
-*.txt
+ops_not_on_webfleet.txt
+debug_ops_not_on_webfleet.py
+foc_debug.txt
 
 # Node
 node_modules/
