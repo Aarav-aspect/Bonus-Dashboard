@@ -101,14 +101,14 @@ async def verify_azure_id_token(id_token: str) -> dict:
 # OAuth Code Exchange
 # ---------------------------------------------------------------------------
 
-async def exchange_code_for_token(code: str) -> dict:
+async def exchange_code_for_token(code: str, redirect_uri: str) -> dict:
     """Exchange authorization code for tokens (access_token + id_token)."""
     token_url = f"https://login.microsoftonline.com/{MICROSOFT_TENANT_ID}/oauth2/v2.0/token"
     data = {
         "client_id": MICROSOFT_CLIENT_ID,
         "scope": "User.Read openid profile email",
         "code": code,
-        "redirect_uri": REDIRECT_URI,
+        "redirect_uri": redirect_uri,
         "grant_type": "authorization_code",
         "client_secret": MICROSOFT_CLIENT_SECRET,
     }

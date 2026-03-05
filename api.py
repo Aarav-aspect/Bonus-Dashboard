@@ -109,13 +109,25 @@ async def dashboard_fallback():
 # ------------------------------------------------------------
 
 @app.get("/api/auth/signin/microsoft")
-def signin_microsoft():
+def signin_microsoft(request: Request):
     """Redirect user to Microsoft login page."""
+    
+    # Dynamically determine the redirect URI based on the request host
+    scheme = request.headers.get("x-forwarded-proto", request.url.scheme)
+    host = request.headers.get("x-forwarded-host", request.url.hostname)
+    port = request.url.port
+    
+    # If running locally on port 8000, keep it. Otherwise, assume standard HTTPS/HTTP port.
+    if port and host in ["localhost", "127.0.0.1"]:
+        redirect_uri = f"{scheme}://{host}:{port}/api/auth/callback/microsoft"
+    else:
+        redirect_uri = f"{scheme}://{host}/api/auth/callback/microsoft"
+        
     auth_url = (
         f"https://login.microsoftonline.com/{auth.MICROSOFT_TENANT_ID}/oauth2/v2.0/authorize"
         f"?client_id={auth.MICROSOFT_CLIENT_ID}"
         f"&response_type=code"
-        f"&redirect_uri={auth.REDIRECT_URI}"
+        f"&redirect_uri={redirect_uri}"
         f"&response_mode=query"
         f"&scope=User.Read openid profile email"
     )
@@ -128,8 +140,21 @@ async def callback_microsoft(request: Request, code: str):
     Handle OAuth callback from Microsoft.
     Exchange code → get ID token → create session JWT → redirect to frontend.
     """
+    # Determine dynamic URLs from the request headers
+    scheme = request.headers.get("x-forwarded-proto", request.url.scheme)
+    host = request.headers.get("x-forwarded-host", request.url.hostname)
+    port = request.url.port
+    
+    # Construct exact redirect_uri to match what we sent in signin
+    if port and host in ["localhost", "127.0.0.1"]:
+        redirect_uri = f"{scheme}://{host}:{port}/api/auth/callback/microsoft"
+        frontend_url = f"{scheme}://{host}:5173" # Local dev frontend
+    else:
+        redirect_uri = f"{scheme}://{host}/api/auth/callback/microsoft"
+        frontend_url = f"{scheme}://{host}" # Production serves frontend on same host
+        
     # 1. Exchange code for tokens
-    token_data = await auth.exchange_code_for_token(code)
+    token_data = await auth.exchange_code_for_token(code, redirect_uri)
 
     id_token = token_data.get("id_token")
     if not id_token:
@@ -161,7 +186,7 @@ async def callback_microsoft(request: Request, code: str):
     session_token = auth.create_session_token(user_data)
 
     # 7. Set cookie and redirect to frontend dashboard
-    redirect = RedirectResponse(url=f"{auth.FRONTEND_URL}/dashboard")
+    redirect = RedirectResponse(url=f"{frontend_url}/dashboard")
     auth.set_session_cookie(request, redirect, session_token)
     return redirect
 
