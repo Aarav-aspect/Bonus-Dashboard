@@ -259,7 +259,7 @@ def get_secrets():
     except Exception as e:
         logger.warning(f"Error reading secrets.toml: {e}")
 
-    # Fallback to environment variables for Cloud Run/Production
+    # --- Salesforce ---
     if "salesforce" not in secrets:
         secrets["salesforce"] = {}
     
@@ -267,7 +267,20 @@ def get_secrets():
     sf["username"] = os.getenv("SF_USERNAME", sf.get("username"))
     sf["password"] = os.getenv("SF_PASSWORD", sf.get("password"))
     sf["security_token"] = os.getenv("SF_SECURITY_TOKEN", sf.get("security_token"))
-    sf["domain"] = os.getenv("SF_DOMAIN", sf.get("domain", "login")) # default to login
+    sf["domain"] = os.getenv("SF_DOMAIN", sf.get("domain", "login"))
+
+    # --- Webfleet ---
+    if "webfleet" not in secrets:
+        secrets["webfleet"] = {}
+    
+    wf = secrets["webfleet"]
+    wf["account"] = os.getenv("WF_ACCOUNT", wf.get("account"))
+    wf["username"] = os.getenv("WF_USERNAME", wf.get("username"))
+    wf["password"] = os.getenv("WF_PASSWORD", wf.get("password"))
+    wf["apikey"] = os.getenv("WF_APIKEY", wf.get("apikey"))
+    # Support both key names for flexibility
+    if not wf.get("apikey") and os.getenv("WF_API_KEY"):
+         wf["apikey"] = os.getenv("WF_API_KEY")
     
     return secrets
 
