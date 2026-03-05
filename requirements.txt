@@ -33,6 +33,7 @@ gunicorn==25.1.0
 h11==0.16.0
 htbuilder==0.9.0
 httplib2==0.31.2
+httpx==0.27.0
 idna==3.11
 isodate==0.7.2
 itsdangerous==2.2.0
