@@ -21,6 +21,7 @@ LOW_SCORE_CUT = 60.0
 CONSISTENTLY_LOW_MONTHS = 2
 
 
+# Numeric helpers
 def _is_nan(x: Any) -> bool:
     return isinstance(x, float) and math.isnan(x)
 
@@ -43,6 +44,7 @@ def _fmt_money(v: Optional[float], digits: int = 0) -> str:
     return "-" if n is None else f"{n:,.{digits}f}"
 
 
+# Business meaning maps
 def _impact_text(kpi: str) -> str:
     return {
         "Ops Count %": "Lower staffing coverage can reduce capacity and increase delays.",
@@ -69,6 +71,7 @@ def _action_text(kpi: str) -> Dict[str, str]:
     }.get(kpi, {"level": "MEDIUM", "text": "Investigate and fix the drivers behind weak productivity performance."})
 
 
+# Extractors
 def _get_bonus_tuple(result: Dict[str, Any]) -> Tuple[Optional[float], Optional[float], Optional[float], Optional[str]]:
     b = (result or {}).get("bonus") or {}
     pot = _safe_float(b.get("pot"))
@@ -111,6 +114,7 @@ def _unique_actions(kpis: List[str]) -> List[Dict[str, str]]:
     return out
 
 
+# Main builder
 def build_productivity_quarterly_insights(
     *,
     trade_group: str,

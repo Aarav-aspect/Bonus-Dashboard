@@ -1,8 +1,5 @@
 def enrich_kpis(kpis, raw_metrics):
-    """
-    Enriches the standard KPI dictionary with rich objects {value, numerator, denominator}
-    for frontend drilldowns.
-    """
+    """Enrich KPI dictionary with detail objects for frontend drilldowns."""
     enriched = kpis.copy()
 
     # 1. Estimate Production / Reactive Leads %

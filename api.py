@@ -44,9 +44,7 @@ import auth
 
 from kpi_drilldown_config import KPI_DRILLDOWNS
 
-# ------------------------------------------------------------
-# App
-# ------------------------------------------------------------
+# App startup
 
 app = FastAPI(
     title="Performance Dashboard API",
@@ -71,9 +69,7 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# ------------------------------------------------------------
-# SERVE FRONTEND (For production)
-# ------------------------------------------------------------
+# Serve Frontend (Production)
 
 # We assume the frontend is built into 'web-app/dist'
 # This will be used in the Docker container
@@ -91,17 +87,11 @@ if dist_path.exists():
             return FileResponse(index_file)
         return {"message": "Frontend not built yet. Run 'npm run build' in web-app/"}
 
-# ------------------------------------------------------------
-# FALLBACK ROUTING (For development)
-# ------------------------------------------------------------
+# Fallback Routing
 
 @app.get("/dashboard")
 async def dashboard_fallback(request: Request):
-    """
-    If someone hits /dashboard on the backend port directly:
-    - In production: Serve the frontend index.html if it exists.
-    - In development: Redirect to the Vite port.
-    """
+    """Serve index or redirect based on environment."""
     dist_path = Path("web-app/dist")
     index_file = dist_path / "index.html"
     
@@ -113,9 +103,7 @@ async def dashboard_fallback(request: Request):
     # Otherwise fallback to the configured frontend URL (development)
     return RedirectResponse(url=f"{auth.FRONTEND_URL}/dashboard")
 
-# ------------------------------------------------------------
-# AUTH ENDPOINTS (Stateless Azure AD)
-# ------------------------------------------------------------
+# Auth Endpoints
 
 @app.get("/api/auth/signin/microsoft")
 def signin_microsoft(request: Request):
@@ -145,10 +133,7 @@ def signin_microsoft(request: Request):
 
 @app.get("/api/auth/callback/microsoft")
 async def callback_microsoft(request: Request, code: str):
-    """
-    Handle OAuth callback from Microsoft.
-    Exchange code → get ID token → create session JWT → redirect to frontend.
-    """
+    """Handle OAuth callback from Microsoft."""
     # Determine dynamic URLs from the request headers
     scheme = request.headers.get("x-forwarded-proto", request.url.scheme)
     host = request.headers.get("x-forwarded-host", request.url.hostname)
@@ -239,10 +224,7 @@ class DevLoginRequest(BaseModel):
 
 @app.post("/api/auth/dev/login")
 def dev_login(request: Request, data: DevLoginRequest, response: Response):
-    """
-    Developer login endpoint.
-    Creates a valid session cookie for the requested role without Azure AD.
-    """
+    """Developer login for testing."""
     # In a real production app, checking a flag like 'DEBUG_MODE' here is good practice.
     # For this internal dashboard, we expose it for ease of testing.
     
@@ -256,9 +238,7 @@ def dev_login(request: Request, data: DevLoginRequest, response: Response):
     return {"status": "success", "message": f"Logged in as {data.role}"}
 
 
-# ------------------------------------------------------------
-# Schemas (API contracts)
-# ------------------------------------------------------------
+# Schemas
 
 class DashboardRequest(BaseModel):
     month: str
@@ -286,9 +266,7 @@ class DashboardResponse(BaseModel):
     live_materials: float = 0.0
 
 
-# ------------------------------------------------------------
-# META ENDPOINTS
-# ------------------------------------------------------------
+# Meta Endpoints
 
 @app.get("/meta/trade-groups")
 def get_trade_groups():

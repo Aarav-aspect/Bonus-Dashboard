@@ -1,7 +1,5 @@
 
-# ============================================================
 # SOQL Query Filters
-# ============================================================
 
 KEY_ACCOUNTS_FILTER_JOB = (
     "AND Sector_Type__c != 'Key accounts' AND Account_Type__c != 'Key accounts'"
@@ -11,9 +9,7 @@ KEY_ACCOUNTS_FILTER_SA = (
     "AND Job__r.Sector_Type__c != 'Key accounts' AND Job__r.Account_Type__c != 'Key accounts'"
 )
 
-# ============================================================
-# Query String Generator Functions
-# ============================================================
+# Query String Generators
 
 def get_service_resources_query() -> str:
     return """

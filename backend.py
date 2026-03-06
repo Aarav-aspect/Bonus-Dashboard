@@ -60,9 +60,7 @@ def get_previous_month_range(start_iso: str) -> tuple[str, str]:
         last_of_previous.strftime("%Y-%m-%dT23:59:59Z"),
     )
 
-# ============================================================
 # Trade Groups / Mappings
-# ============================================================
 
 TRADE_GROUPS: Dict[str, List[str]] = {
     "HVac & Electrical": [
@@ -173,9 +171,7 @@ def get_trade_list(group_name: str) -> List[str]:
     return TRADE_GROUPS.get(group_name, [])
 
 
-# ============================================================
 # Month Filters
-# ============================================================
 
 def get_last_day_of_month(year: int, month: int) -> int:
     import calendar
@@ -242,15 +238,9 @@ def infer_month_key_and_year_from_iso(start_iso: str):
     return month_keys[dt.month - 1], dt.year
 
 
-# ============================================================
 # Secrets & Salesforce Client
-# ============================================================
 
-def get_secrets():
-    """
-    Read secrets from secrets.toml or environment variables.
-    In production, we prefer environment variables.
-    """
+    """Read secrets from secrets.toml or environment variables."""
     secrets = {}
     try:
         if os.path.exists("secrets.toml"):
@@ -304,9 +294,7 @@ def sf_client() -> Salesforce:
     return Salesforce(session_id=session_id, instance=instance)
 
 
-# ============================================================
 # Utility Helpers
-# ============================================================
 
 def _strip_attrs(records: List[dict]) -> List[dict]:
     for r in records:
@@ -346,9 +334,7 @@ def resolve_trades_for_filters(trade_group: str, trade_filter: str) -> List[str]
     return subgroup.get(trade_filter, get_trade_list(trade_group))
 
 
-# ============================================================
 # Webfleet API
-# ============================================================
 
 def get_webfleet_config() -> Optional[Dict]:
     try:

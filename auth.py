@@ -1,16 +1,4 @@
-"""
-Stateless Azure AD Authentication Module
-=========================================
-Zero database dependency. JWT sessions validated against Azure AD JWKS.
-Roles are read from Azure AD App Roles claims.
-
-Role format in Azure AD:
-  - "admin"
-  - "manager"
-  - "trade_group_manager:HVAC"
-  - "trade_manager:HVAC:Heating"
-  - "user"
-"""
+"""Stateless Azure AD Authentication Module."""
 
 import os
 import time
@@ -20,9 +8,7 @@ from datetime import datetime, timedelta
 from jose import jwt, JWTError
 from fastapi import HTTPException, Request, Response
 
-# ---------------------------------------------------------------------------
-# Configuration
-# ---------------------------------------------------------------------------
+# Config
 
 MICROSOFT_CLIENT_ID = os.getenv("MICROSOFT_CLIENT_ID", "a7682cd1-5ec8-4228-a2fa-26e000133b18")
 MICROSOFT_CLIENT_SECRET = os.getenv("MICROSOFT_CLIENT_SECRET", "hAO8Q~yrza0jXMBoCBxESJjkpLphTzFh6uKLkby7")
@@ -41,9 +27,7 @@ SESSION_COOKIE_NAME = "session_token"
 _jwks_cache = {"keys": None, "fetched_at": 0}
 JWKS_CACHE_TTL = 3600  # 1 hour
 
-# ---------------------------------------------------------------------------
-# Azure AD JWKS (for validating ID tokens from Microsoft)
-# ---------------------------------------------------------------------------
+# Azure AD JWKS
 
 async def _fetch_jwks():
     """Fetch Azure AD public signing keys (JWKS)."""
@@ -97,9 +81,7 @@ async def verify_azure_id_token(id_token: str) -> dict:
         raise HTTPException(status_code=401, detail=f"Token validation failed: {str(e)}")
 
 
-# ---------------------------------------------------------------------------
-# OAuth Code Exchange
-# ---------------------------------------------------------------------------
+# OAuth
 
 async def exchange_code_for_token(code: str, redirect_uri: str) -> dict:
     """Exchange authorization code for tokens (access_token + id_token)."""
@@ -120,9 +102,7 @@ async def exchange_code_for_token(code: str, redirect_uri: str) -> dict:
         return response.json()
 
 
-# ---------------------------------------------------------------------------
-# Role Parsing (from Azure AD App Roles)
-# ---------------------------------------------------------------------------
+# Role Parsing
 
 # Azure AD doesn't allow special chars (&, commas, spaces) in role values.
 # We use simplified slugs in Azure and map them to real trade group names here.

@@ -1,27 +1,7 @@
-"""
-KPI Drilldown Configuration
-============================
-Controls which KPIs show a "View Details" button in the drilldown modal,
-and defines what data (columns) to display in the popup table.
-
-To add a new drilldown:
-  1. Add a new entry to KPI_DRILLDOWNS  (key = exact KPI name as it appears on the dashboard)
-  2. Set the data_source to point at the backend function that returns the rows
-  3. List the columns you want shown in the popup table
-
-Column definition:
-  - key       : field name coming from the backend response
-  - label     : header text shown in the table
-  - type      : "text" | "score" | "bar"
-        text  → plain string
-        score → numeric with color coding (green >= good, red < bad)
-        bar   → thin progress bar (0–max_value)
-  - max_value : (only for type="bar") the upper bound for the bar width
-"""
+"""KPI Drilldown Configuration."""
 
 KPI_DRILLDOWNS = {
 
-    # ── Drivers with <7 % ────────────────────────────────────────────────
     "Drivers with <7 %": {
         "title": "Drivers",                  # Modal title prefix
         "data_source": "drivers",            # maps to /api/drilldown/drivers
@@ -36,7 +16,6 @@ KPI_DRILLDOWNS = {
         ],
     },
 
-    # ── Average Driving Score ────────────────────────────────────────────
     "Average Driving Score": {
         "title": "Drivers",                  # Same modal as above
         "data_source": "drivers",            # reuses /api/drilldown/drivers
@@ -51,7 +30,6 @@ KPI_DRILLDOWNS = {
         ],
     },
 
-    # ── Average Review Rating ────────────────────────────────────────────
     "Average Review Rating": {
         "title": "Reviews",
         "data_source": "reviews",            # maps to /api/drilldown/reviews
@@ -66,7 +44,6 @@ KPI_DRILLDOWNS = {
         ],
     },
 
-    # ── Ops Count % ──────────────────────────────────────────────────────
     "Ops Count %": {
         "title": "Ops",
         "data_source": "ops_list",               # maps to /api/drilldown/ops-list
@@ -79,7 +56,6 @@ KPI_DRILLDOWNS = {
         ],
     },
 
-    # ── Unclosed SA % ────────────────────────────────────────────────────
     "Unclosed SA %": {
         "title": "SAs",
         "data_source": "unclosed_sas",
@@ -92,7 +68,6 @@ KPI_DRILLDOWNS = {
         ],
     },
 
-    # ── Callback Jobs % ──────────────────────────────────────────────────
     "Callback Jobs %": {
         "title": "Callback Jobs",
         "data_source": "callback_jobs",
@@ -104,7 +79,6 @@ KPI_DRILLDOWNS = {
         ],
     },
 
-    # ── Reactive 6+ hours % ──────────────────────────────────────────────
     "Reactive 6+ hours %": {
         "title": "Reactive 6+ Hrs",
         "data_source": "reactive_6plus",
@@ -117,7 +91,6 @@ KPI_DRILLDOWNS = {
         ],
     },
 
-    # ── TQR (Not Satisfied) Ratio % ──────────────────────────────────────
     "TQR (Not Satisfied) Ratio %": {
         "title": "TQR Not Satisfied",
         "data_source": "tqr_not_satisfied",
@@ -129,7 +102,6 @@ KPI_DRILLDOWNS = {
         ],
     },
 
-    # ── Late to Site % ────────────────────────────────────────────────────
     "Late to Site %": {
         "title": "Late Engineers",
         "data_source": "late_to_site",
@@ -143,7 +115,6 @@ KPI_DRILLDOWNS = {
         ],
     },
 
-    # ── Cases % ────────────────────────────────────────────────────────
     "Cases %": {
         "title": "Cases",
         "data_source": "cases",

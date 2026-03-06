@@ -1,4 +1,4 @@
-# insights/pools/procedural.py
+# insights/pools/vehicular.py
 from __future__ import annotations
 
 from typing import Dict, Any, List, Optional, Tuple
@@ -6,17 +6,17 @@ import math
 from datetime import datetime
 
 
-PROCEDURAL_KPIS = [
-    "TQR Ratio %",
-    "TQR (Not Satisfied) Ratio %",
-    "Unclosed SA %",
-    "Reactive 6+ hours %",
+VEHICULAR_KPIS = [
+    "Average Driving Score",
+    "Drivers with <7 %",
+    "VCR Update %",
 ]
 
 LOW_SCORE_CUT = 60.0
 CONSISTENTLY_LOW_MONTHS = 2
 
 
+# Numeric helpers
 def _is_nan(x: Any) -> bool:
     return isinstance(x, float) and math.isnan(x)
 
@@ -39,24 +39,24 @@ def _fmt_money(v: Optional[float], digits: int = 0) -> str:
     return "-" if n is None else f"{n:,.{digits}f}"
 
 
+# Business meaning maps
 def _impact_text(kpi: str) -> str:
     return {
-        "TQR Ratio %": "Lower quality checks can increase missed issues and rework.",
-        "TQR (Not Satisfied) Ratio %": "More customers leaving unhappy after quality checks suggests quality or communication issues.",
-        "Unclosed SA %": "More unclosed appointments can mean work is not being properly completed or closed down.",
-        "Reactive 6+ hours %": "More long reactive jobs can signal poor diagnostics, repeat visits, or scheduling inefficiency.",
-    }.get(kpi, "Procedural performance is below target and may increase rework and customer complaints.")
+        "Average Driving Score": "Lower driving scores can mean higher risk and higher cost over time.",
+        "Drivers with <7 %": "More drivers below the safe threshold increases risk and likely increases incidents or maintenance costs.",
+        "VCR Update %": "Lower vehicle check completion increases the chance of missed issues and downtime.",
+    }.get(kpi, "Vehicular performance is below target and may increase risk and downtime.")
 
 
 def _action_text(kpi: str) -> Dict[str, str]:
     return {
-        "TQR Ratio %": {"level": "MEDIUM", "text": "Increase quality checks: make TQR completion consistent and coach teams on expectations."},
-        "TQR (Not Satisfied) Ratio %": {"level": "HIGH", "text": "Reduce unhappy outcomes: improve customer updates, fix common job issues, and improve handoffs."},
-        "Unclosed SA %": {"level": "HIGH", "text": "Close work properly: fix process gaps that leave appointments open and enforce closure hygiene."},
-        "Reactive 6+ hours %": {"level": "MEDIUM", "text": "Reduce long jobs: improve diagnostics, parts readiness, and scheduling to avoid delays."},
-    }.get(kpi, {"level": "MEDIUM", "text": "Investigate and fix the drivers behind weak procedural performance."})
+        "Average Driving Score": {"level": "MEDIUM", "text": "Improve driving behaviour: coaching for the lowest scorers and clear expectations."},
+        "Drivers with <7 %": {"level": "HIGH", "text": "Focus on the risky driver group: targeted coaching and follow-ups until they improve."},
+        "VCR Update %": {"level": "HIGH", "text": "Increase vehicle checks: make checks mandatory and follow up on missed submissions."},
+    }.get(kpi, {"level": "MEDIUM", "text": "Investigate and fix the drivers behind weak vehicular performance."})
 
 
+# Extractors
 def _get_bonus_tuple(result: Dict[str, Any]) -> Tuple[Optional[float], Optional[float], Optional[float], Optional[str]]:
     b = (result or {}).get("bonus") or {}
     pot = _safe_float(b.get("pot"))
@@ -67,10 +67,10 @@ def _get_bonus_tuple(result: Dict[str, Any]) -> Tuple[Optional[float], Optional[
 
 
 def _kpi_month_scores(month_payloads: List[Dict[str, Any]]) -> Dict[str, List[Optional[float]]]:
-    out: Dict[str, List[Optional[float]]] = {k: [] for k in PROCEDURAL_KPIS}
+    out: Dict[str, List[Optional[float]]] = {k: [] for k in VEHICULAR_KPIS}
     for payload in (month_payloads or []):
         scores = (payload or {}).get("kpi_scores") or {}
-        for kpi in PROCEDURAL_KPIS:
+        for kpi in VEHICULAR_KPIS:
             out[kpi].append(_safe_float(scores.get(kpi)))
     return out
 
@@ -99,7 +99,8 @@ def _unique_actions(kpis: List[str]) -> List[Dict[str, str]]:
     return out
 
 
-def build_procedural_quarterly_insights(
+# Main builder
+def build_vehicular_quarterly_insights(
     *,
     trade_group: str,
     trade_filter: str,
@@ -113,11 +114,11 @@ def build_procedural_quarterly_insights(
     consistently_low = sorted([k for k, c in low_counts.items() if c >= CONSISTENTLY_LOW_MONTHS])
 
     changes = {k: _first_last_change(v) for k, v in month_scores.items()}
-    improved = sorted([k for k in PROCEDURAL_KPIS if _is_number(changes.get(k)) and changes[k] > 0])
-    worsened = sorted([k for k in PROCEDURAL_KPIS if _is_number(changes.get(k)) and changes[k] < 0])
+    improved = sorted([k for k in VEHICULAR_KPIS if _is_number(changes.get(k)) and changes[k] > 0])
+    worsened = sorted([k for k in VEHICULAR_KPIS if _is_number(changes.get(k)) and changes[k] < 0])
 
     qres = quarter_result or {}
-    q_pool = _safe_float(((qres.get("category_scores") or {}).get("Procedural")))
+    q_pool = _safe_float(((qres.get("category_scores") or {}).get("Vehicular")))
     q_overall = _safe_float(qres.get("overall_score"))
     q_pot, q_mult, q_bonus_val, q_band = _get_bonus_tuple(qres)
 
@@ -134,15 +135,15 @@ def build_procedural_quarterly_insights(
 
     if consistently_low:
         summary = (
-            f"Over {window_label}, process/quality measures were repeatedly below target in at least 2 of the 3 months: "
+            f"Over {window_label}, vehicle-related measures were repeatedly below target in at least 2 of the 3 months: "
             f"{', '.join(consistently_low)}."
         )
     else:
-        summary = f"Over {window_label}, process/quality measures did not show any repeated weak areas across the 3 months."
+        summary = f"Over {window_label}, vehicle-related measures did not show any repeated weak areas across the 3 months."
 
     key_findings: List[str] = []
     key_findings.append(f"Months analysed: {window_label}.")
-    key_findings.append(f"Procedural score for the 3-month period: {_fmt(q_pool,1)} (overall score: {_fmt(q_overall,1)}).")
+    key_findings.append(f"Vehicular score for the 3-month period: {_fmt(q_pool,1)} (overall score: {_fmt(q_overall,1)}).")
     if bonus_sentence:
         key_findings.append(bonus_sentence)
 
@@ -151,7 +152,7 @@ def build_procedural_quarterly_insights(
         for kpi in consistently_low:
             key_findings.append(f"- {kpi}: {_impact_text(kpi)}")
     else:
-        key_findings.append("No procedural KPI was repeatedly below target across the 3 months.")
+        key_findings.append("No vehicular KPI was repeatedly below target across the 3 months.")
 
     if improved:
         key_findings.append(f"Areas that improved over the 3 months: {', '.join(improved[:3])}.")
@@ -163,18 +164,8 @@ def build_procedural_quarterly_insights(
     decision_triggers: List[Dict[str, str]] = []
     if len(consistently_low) >= 2:
         decision_triggers.append({
-            "title": "Process/quality needs attention",
-            "description": "Two or more process/quality measures were below target in at least 2 of the last 3 months.",
-        })
-    if isinstance(q_band, str) and q_band.lower() in {"bronze", "below"}:
-        decision_triggers.append({
-            "title": "Bonus band is low for this period",
-            "description": "Overall performance is dragging the bonus band down. Improving process/quality will help lift the overall score and bonus.",
-        })
-    if _is_number(q_mult) and q_mult < 0:
-        decision_triggers.append({
-            "title": "Bonus multiplier is pulling down pay-out",
-            "description": "The multiplier is negative, which reduces the bonus pay-out for this period.",
+            "title": "Vehicle checks/driving need attention",
+            "description": "Two or more vehicle-related measures were below target in at least 2 of the last 3 months.",
         })
 
     return {
@@ -192,7 +183,7 @@ def build_procedural_quarterly_insights(
             "monthly_scores": month_scores,
             "consistently_low_counts": low_counts,
             "quarter_aggregate": {
-                "procedural_pool_score": q_pool,
+                "vehicular_pool_score": q_pool,
                 "overall_score": q_overall,
                 "bonus": {"pot": q_pot, "multiplier": q_mult, "bonus_value": q_bonus_val, "band": q_band},
             },

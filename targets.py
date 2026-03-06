@@ -5,9 +5,7 @@ from pathlib import Path
 import builtins
 
 
-# ============================================================
-# fetching the bonus pot values from a seperate json value
-# ============================================================
+# Bonus pot values
 BONUS_POT_FILE = Path("bonuspot.json")
 
 def load_bonus_pots():
@@ -17,9 +15,7 @@ def load_bonus_pots():
     return {}
 
 
-# ============================================================
 # Utilities
-# ============================================================
 
 def normalise_kpi_name(name: str):
     if type(name) is not builtins.str:
@@ -34,9 +30,7 @@ def normalise_kpi_name(name: str):
 
     return name.strip()
 
-# ============================================================
 # Month Mapping
-# ============================================================
 
 MONTH_MAP = {
     "January": "Jan", "February": "Feb", "March": "Mar", "April": "Apr",
@@ -48,9 +42,7 @@ MONTH_MAP = {
     "10": "Oct", "11": "Nov", "12": "Dec",
 }
 
-# ============================================================
-# KPI Config Loading
-# ============================================================
+# KPI Config
 
 THRESHOLD_FILE = Path("thresholds.json")
 KPI_CONFIG = {}
@@ -66,9 +58,7 @@ def reload_kpi_config():
 # Initial load
 reload_kpi_config()
 
-# ============================================================
 # OPS Count Targets
-# ============================================================
 
 OPS_COUNT_TARGETS = {
     "HVac & Electrical": {
@@ -107,9 +97,7 @@ def get_ops_count_target(trade_group: str, month: str, year: int):
     month_key = MONTH_MAP.get(month, month)
     return OPS_COUNT_TARGETS.get(trade_group, {}).get(year, {}).get(month_key)
 
-# ============================================================
 # Sales Targets
-# ============================================================
 
 SALES_TARGETS = {
     "HVac & Electrical": {
@@ -165,9 +153,7 @@ def calculate_ops_count_achievement(actual: int, trade_group: str, month: str, y
         return 0.0
     return (actual / target) * 100
 
-# ============================================================
 # KPI Scoring
-# ============================================================
 
 def calculate_kpi_score(kpi_name: str, value: float, scoring_key: str = None) -> dict:
     kpi_name = normalise_kpi_name(kpi_name)
@@ -233,9 +219,7 @@ def calculate_all_kpi_scores(kpis: dict) -> dict:
             scores[kpi_name] = calculate_kpi_score(kpi_name, value)
     return scores
 
-# ============================================================
 # Category Scoring
-# ============================================================
 
 CATEGORY_KPIS = {
     "Conversion": [
@@ -303,9 +287,7 @@ def get_category_score(category_name: str, kpis: dict, scoring_key: str) -> dict
         "target_met": category_score >= 100,
     }
 
-# ============================================================
 # Bonus Calculation
-# ============================================================
 
 # We are removing the hardcoded bonut pot functionality and will be moving it to the threshold page.
 
@@ -352,16 +334,8 @@ def calculate_bonus(overall_score: float, bonus_group: str, bonus_trade: str = N
     bonus_value = pot * (1 + multiplier)
     return {"pot": pot, "multiplier": multiplier, "bonus_value": bonus_value}
 
-# ============================================================
-# Overall Score
-# ============================================================
-
 def get_overall_score(kpis: dict, scoring_key: str, bonus_group: str, weights: dict = None, bonus_trade: str = None):
-    """
-    scoring_key: The key used to look up KPI thresholds (e.g. "Electrical" OR "HVac & Electrical")
-    bonus_group: The key used to look up Bonus Pot (ALWAYS the Trade Group, e.g. "HVac & Electrical")
-    bonus_trade: Optional specific trade name for trade-specific bonus pot lookup
-    """
+    """Calculate the overall performance score."""
     categories = ["Conversion", "Procedural", "Satisfaction", "Vehicular", "Productivity"]
     if weights is None:
         weights = {c: 1 for c in categories}
@@ -383,9 +357,7 @@ def get_overall_score(kpis: dict, scoring_key: str, bonus_group: str, weights: d
 
     return {"overall_score": overall_score, "bonus": bonus}
 
-# ============================================================
-# Helper Functions
-# ============================================================
+# Helpers
 
 def get_kpi_target_info(kpi_name: str) -> dict:
     return KPI_CONFIG.get(kpi_name)
