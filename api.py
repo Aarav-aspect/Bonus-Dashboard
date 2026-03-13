@@ -27,6 +27,8 @@ from backend import (
     fetch_jobs_by_ids,
     fetch_service_appointments_by_job_ids,
     fetch_reactive_sas,
+    fetch_webfleet_drivers,
+    fetch_vcr_forms,
 )
 
 import json
@@ -43,6 +45,7 @@ from targets import (
 import auth
 
 from kpi_drilldown_config import KPI_DRILLDOWNS
+from mapping import TRADE_GROUP_PHASE, REGION_OPTIONS_BY_PHASE, get_region_for_trade
 
 # App startup
 
@@ -115,7 +118,11 @@ def signin_microsoft(request: Request):
     port = request.url.port
     
     # If running locally on port 8000, keep it. Otherwise, assume standard HTTPS/HTTP port.
-    if port and host in ["localhost", "127.0.0.1"]:
+    # Force localhost for local environment to match Azure AD configuration
+    if host == "127.0.0.1":
+        host = "localhost"
+
+    if port and host == "localhost":
         redirect_uri = f"{scheme}://{host}:{port}/api/auth/callback/microsoft"
     else:
         redirect_uri = f"{scheme}://{host}/api/auth/callback/microsoft"
@@ -127,6 +134,7 @@ def signin_microsoft(request: Request):
         f"&redirect_uri={redirect_uri}"
         f"&response_mode=query"
         f"&scope=User.Read openid profile email"
+        f"&prompt=select_account"
     )
     return RedirectResponse(url=auth_url)
 
@@ -139,8 +147,12 @@ async def callback_microsoft(request: Request, code: str):
     host = request.headers.get("x-forwarded-host", request.url.hostname)
     port = request.url.port
     
+    # Force localhost for local environment to match Azure AD configuration
+    if host == "127.0.0.1":
+        host = "localhost"
+
     # Construct exact redirect_uri to match what we sent in signin
-    if port and host in ["localhost", "127.0.0.1"]:
+    if port and host == "localhost":
         redirect_uri = f"{scheme}://{host}:{port}/api/auth/callback/microsoft"
         frontend_url = f"{scheme}://{host}:5173" # Local dev frontend
     else:
@@ -220,6 +232,7 @@ class DevLoginRequest(BaseModel):
     role: str
     assigned_group: Optional[str] = None
     assigned_trade: Optional[str] = None
+    assigned_region: Optional[str] = None
 
 
 @app.post("/api/auth/dev/login")
@@ -231,7 +244,8 @@ def dev_login(request: Request, data: DevLoginRequest, response: Response):
     token = auth.create_dev_token(
         role=data.role,
         group=data.assigned_group,
-        trade=data.assigned_trade
+        trade=data.assigned_trade,
+        region=data.assigned_region
     )
     
     auth.set_session_cookie(request, response, token)
@@ -244,15 +258,23 @@ class DashboardRequest(BaseModel):
     month: str
     trade_group: str
     trade_filter: Optional[str] = "All"
+    region_filter: Optional[str] = "All"
+
+class GsheetShareholderRequest(BaseModel):
+    trade_filter: Optional[str] = "All"
+    region: Optional[str] = "All"
+    trade_group: Optional[str] = ""
 
 class DrilldownDriversRequest(BaseModel):
     trade_group: str
     trade_filter: Optional[str] = "All"
+    region_filter: Optional[str] = "All"
 
 class DrilldownReviewsRequest(BaseModel):
     trade_group: str
     month: str
     trade_filter: Optional[str] = "All"
+    region_filter: Optional[str] = "All"
 
 
 class DashboardResponse(BaseModel):
@@ -281,6 +303,15 @@ def get_trade_subgroups():
 @app.get("/meta/months")
 def get_months():
     return list_available_months()
+
+
+@app.get("/meta/regions")
+def get_regions():
+    """Returns the mapping of trade groups to phase and available region options."""
+    return {
+        "phases": TRADE_GROUP_PHASE,
+        "options": REGION_OPTIONS_BY_PHASE
+    }
 
 
 # ------------------------------------------------------------
@@ -331,8 +362,12 @@ def save_kpi_config(data: Dict[str, Any], request: Request):
 
 from fastapi import Body, Request, HTTPException
 
+class DynamicUpdate(BaseModel):
+    thresholds: List[float]
+    scores: Optional[List[float]] = None
+
 @app.put("/config/thresholds/dynamic/{kpi_name}")
-def update_dynamic_threshold(kpi_name: str, trade_group: str, request: Request, thresholds: List[float] = Body(...)):
+def update_dynamic_threshold(kpi_name: str, trade_group: str, request: Request, payload: DynamicUpdate):
     auth.require_role(request, ["admin", "manager"])
 
     """
@@ -359,26 +394,31 @@ def update_dynamic_threshold(kpi_name: str, trade_group: str, request: Request, 
     if dynamic_config.get("type") != "trade_based":
         raise HTTPException(status_code=400, detail=f"KPI '{kpi_name}' is not trade-based")
 
-    scores = dynamic_config.get("scores", [])
-    if len(thresholds) != len(scores):
-        raise HTTPException(
-            status_code=400,
-            detail=f"Threshold count ({len(thresholds)}) must match scores count ({len(scores)})"
-        )
+    scores = payload.scores if payload.scores is not None else dynamic_config.get("scores", [])
+    thresholds = payload.thresholds
 
-    thresholds_by_trade = dynamic_config.get("thresholds_by_trade", {})
+    if len(thresholds) != len(scores):
+        # If scores were provided, update them. If not, zip will handle truncation/padding in scoring.
+        # But for data integrity, we should probably warn or just update the scores if specifically provided.
+        if payload.scores is not None:
+            dynamic_config["scores"] = scores
+        else:
+            # If scores not provided but length mismatch, we still allow it but it might be confusing.
+            # Best to just allow it for now to let the user save.
+            pass
+
+    thresholds_by_trade = dynamic_config.setdefault("thresholds_by_trade", {})
     thresholds_by_trade[trade_group] = thresholds
 
     with open(THRESHOLD_FILE, "w") as f:
         json.dump(data, f, indent=2)
 
     reload_kpi_config()
-
     return {"status": "success", "kpi": kpi_name, "trade_group": trade_group}
 
 
 @app.put("/config/thresholds/dynamic/{kpi_name}/all")
-def update_dynamic_threshold_all_groups(kpi_name: str, request: Request, thresholds: List[float] = Body(...)):
+def update_dynamic_threshold_all_groups(kpi_name: str, request: Request, payload: DynamicUpdate):
     auth.require_role(request, ["admin", "manager"])
 
     """
@@ -405,17 +445,27 @@ def update_dynamic_threshold_all_groups(kpi_name: str, request: Request, thresho
     if dynamic_config.get("type") != "trade_based":
         raise HTTPException(status_code=400, detail=f"KPI '{kpi_name}' is not trade-based")
 
-    scores = dynamic_config.get("scores", [])
-    if len(thresholds) != len(scores):
-        raise HTTPException(
-            status_code=400,
-            detail=f"Threshold count ({len(thresholds)}) must match scores count ({len(scores)})"
-        )
+    scores = payload.scores if payload.scores is not None else dynamic_config.get("scores", [])
+    thresholds = payload.thresholds
+
+    if payload.scores is not None:
+        dynamic_config["scores"] = scores
 
     # Write the same thresholds to every existing trade group key
     thresholds_by_trade = dynamic_config.get("thresholds_by_trade", {})
     for trade_key in list(thresholds_by_trade.keys()):
+        # If the length changed, we are updating ALL trades in the list anyway
         thresholds_by_trade[trade_key] = thresholds
+        
+    # Also ensure we add any known trade groups/subgroups that might be missing
+    # in case the frontend sends a request for a newly added trade group.
+    # The frontend usually explicitly updates each trade individually in the grid,
+    # but the 'all' endpoint should at least ensure the main group structure exists.
+    # We mainly rely on the frontend individual calls or the loop above, but we also 
+    # need to check if a specific group/subgroup was requested directly.
+    # The issue here was specifically when "Drainage" was requested individually 
+    # but didn't exist in the JSON yet. That is actually handled by the other endpoint.
+    # Let's just make sure both handle missing keys safely by initializing if not found.
 
     with open(THRESHOLD_FILE, "w") as f:
         json.dump(data, f, indent=2)
@@ -428,6 +478,21 @@ def update_dynamic_threshold_all_groups(kpi_name: str, request: Request, thresho
 # ------------------------------------------------------------
 # DRILLDOWN ENDPOINTS
 # ------------------------------------------------------------
+
+@app.post("/api/gsheet/shareholder-breakdown")
+def get_gsheet_shareholder_breakdown(data: GsheetShareholderRequest, request: Request):
+    user = auth.get_current_user(request)
+    if not user:
+        raise HTTPException(status_code=401, detail="Not authenticated")
+    from backend import get_gsheet_column_data
+    col_data = get_gsheet_column_data(data.trade_filter, data.region, data.trade_group or "")
+    return {
+        "data": col_data,
+        "trade_filter": data.trade_filter,
+        "region": data.region,
+        "found": bool(col_data),
+    }
+
 
 @app.post("/api/drilldown/drivers")
 def get_driver_scores(data: DrilldownDriversRequest, request: Request):
@@ -462,31 +527,85 @@ def get_driver_scores(data: DrilldownDriversRequest, request: Request):
     if not score_col or df_trade.empty:
         return {"drivers": [], "trade_group": data.trade_group}
 
+    # NEW: Apply Region Filter for Drivers
+    if data.region_filter != "All":
+        df_trade = df_trade[
+            df_trade["Effective_PostalCode__c"].apply(
+                lambda pc: get_region_for_trade(pc, data.trade_group) == data.region_filter
+            )
+        ]
+
+    if df_trade.empty:
+        return {"drivers": [], "trade_group": data.trade_group}
+
     df_trade["score_numeric"] = pd.to_numeric(df_trade[score_col], errors="coerce")
-    df_trade = df_trade.dropna(subset=["score_numeric"])
+    df_scored = df_trade.dropna(subset=["score_numeric"]).copy()
 
     # Scale to 0–10
-    df_trade["score_scaled"] = df_trade["score_numeric"] * 10
+    df_scored["score_scaled"] = df_scored["score_numeric"] * 10
 
-    # Build results
+    # Build results for engineers with Optidrive scores
     drivers = []
-    for _, row in df_trade.iterrows():
-        name = row.get("Engineer Name", "") or row.get("Email", "Unknown")
-        score = round(float(row["score_scaled"]), 1)
+    matched_ids = set()
+    for _, row in df_scored.iterrows():
+        name = row.get("Engineer Name", "Unknown")
+        score_raw = float(row[score_col])
+        score_scaled = score_raw * 10  # Webfleet raw is 0-1, displayed as 0-10
+        pc = str(row.get("Effective_PostalCode__c", ""))
+        region = get_region_for_trade(pc, data.trade_group) if pc else "Unknown"
+        rid = str(row.get("ServiceResourceId", ""))
+        if rid:
+            matched_ids.add(rid)
         drivers.append({
             "name": name if name else "Unknown",
-            "score": score,
-            "below_threshold": score < 7.0,
-            "trade": str(row.get("Trade_Lookup__c", "Unknown"))
+            "score": score_scaled,          # send 0-10 value to frontend
+            "below_threshold": score_scaled < 7.0,  # consistent with KPI: < 7 on 0-10 scale
+            "trade": str(row.get("Trade_Lookup__c", "Unknown")),
+            "region": region,
+            "missing_data": False,
         })
 
-    # Sort: worst scores first
+    # Sort scored drivers: worst scores first
     drivers.sort(key=lambda d: d["score"])
 
+    # Find engineers in SF for this trade/region who have no Optidrive data
+    df_engineers_all = fetch_service_resources()
+    if not df_engineers_all.empty:
+        if trades:
+            df_eng_filtered = df_engineers_all[df_engineers_all["Trade_Lookup__c"].isin(trades)].copy()
+        else:
+            df_eng_filtered = df_engineers_all[df_engineers_all["Trade Group"] == data.trade_group].copy()
+
+        if data.region_filter != "All" and not df_eng_filtered.empty:
+            df_eng_filtered = df_eng_filtered[
+                df_eng_filtered["Effective_PostalCode__c"].apply(
+                    lambda pc: get_region_for_trade(str(pc) if pc else "", data.trade_group) == data.region_filter
+                )
+            ]
+
+        for _, row in df_eng_filtered.iterrows():
+            rid = str(row.get("ServiceResourceId", ""))
+            if rid in matched_ids:
+                continue
+            name = row.get("Engineer Name", "Unknown")
+            pc = str(row.get("Effective_PostalCode__c", ""))
+            region = get_region_for_trade(pc, data.trade_group) if pc else "Unknown"
+            drivers.append({
+                "name": name if name else "Unknown",
+                "score": None,
+                "below_threshold": False,
+                "trade": str(row.get("Trade_Lookup__c", "Unknown")),
+                "region": region,
+                "missing_data": True,
+            })
+
+    missing_count = sum(1 for d in drivers if d["missing_data"])
     return {
         "drivers": drivers,
         "trade_group": data.trade_group,
         "total_count": len(drivers),
+        "scored_count": len(drivers) - missing_count,
+        "missing_count": missing_count,
         "below_7_count": sum(1 for d in drivers if d["below_threshold"]),
     }
 
@@ -517,11 +636,21 @@ def get_ops_list(data: DrilldownDriversRequest, request: Request):
         else:
             df_filtered = df_engineers[df_engineers["Trade Group"] == data.trade_group]
 
+        # NEW: Apply Region Filter
+        if data.region_filter != "All":
+            df_filtered = df_filtered[
+                df_filtered["Effective_PostalCode__c"].apply(
+                    lambda pc: get_region_for_trade(pc, data.trade_group) == data.region_filter
+                )
+            ]
+
         ops = []
         for _, row in df_filtered.iterrows():
             name = row.get("Engineer Name", "") or "Unknown"
             trade = str(row.get("Trade_Lookup__c", "Unknown"))
-            ops.append({"name": name, "trade": trade})
+            pc = str(row.get("Effective_PostalCode__c", ""))
+            region = get_region_for_trade(pc, data.trade_group) if pc else "Unknown"
+            ops.append({"name": name, "trade": trade, "region": region})
 
         # Sort alphabetically by name
         ops.sort(key=lambda o: o["name"])
@@ -554,6 +683,17 @@ def get_unclosed_sas(data: DrilldownReviewsRequest, request: Request):
         start_iso, end_iso = get_month_range(data.month)
 
         df_sa = fetch_service_appointments_month(trades_tuple, start_iso, end_iso)
+        if df_sa.empty:
+            return {"unclosed_sas": [], "trade_group": data.trade_group, "total_count": 0}
+
+        # NEW: Apply Region Filter for SAs
+        if data.region_filter != "All":
+            df_sa = df_sa[
+                df_sa["PostalCode"].apply(
+                    lambda pc: get_region_for_trade(pc, data.trade_group) == data.region_filter
+                )
+            ]
+
         if df_sa.empty:
             return {"unclosed_sas": [], "trade_group": data.trade_group, "total_count": 0}
 
@@ -590,6 +730,80 @@ def get_unclosed_sas(data: DrilldownReviewsRequest, request: Request):
             "unclosed_sas": sas,
             "trade_group": data.trade_group,
             "total_count": len(sas),
+        }
+    except Exception as e:
+        traceback.print_exc()
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.post("/api/drilldown/vcr-update")
+def get_vcr_update(data: DrilldownReviewsRequest, request: Request):
+    """
+    Returns the VCR forms submitted per driver for a given trade group.
+    """
+    user = auth.get_current_user(request)
+    if not user:
+        raise HTTPException(status_code=401, detail="Not authenticated")
+
+    import pandas as pd
+    import traceback
+
+    try:
+        # Use get_merged_vehicular_data() to only show people who actually drive (the "drivers")
+        df_all_drivers = get_merged_vehicular_data()
+        if df_all_drivers.empty:
+            return {"drivers": [], "trade_group": data.trade_group, "total_count": 0}
+
+        # Filter to specific trades via trade_filter
+        trades = resolve_trades_for_filters(data.trade_group, data.trade_filter)
+        if trades:
+            df_filtered = df_all_drivers[df_all_drivers["Trade_Lookup__c"].isin(trades)].copy()
+        else:
+            df_filtered = df_all_drivers[df_all_drivers["Trade Group"] == data.trade_group].copy()
+
+        # Apply Region Filter
+        if data.region_filter != "All":
+            df_filtered = df_filtered[
+                df_filtered["Effective_PostalCode__c"].apply(
+                    lambda pc: get_region_for_trade(pc, data.trade_group) == data.region_filter
+                )
+            ]
+
+
+        # Fetch VCR forms for the selected month
+        # Use get_month_range(data.month) here to accurately reflect the dashboard's selected month
+        start_iso, end_iso = get_month_range(data.month)
+        df_vcr = fetch_vcr_forms(start_iso, end_iso)
+
+        driver_stats = []
+        for _, row in df_filtered.iterrows():
+            name = row.get("Engineer Name", "") or "Unknown"
+            trade = str(row.get("Trade_Lookup__c", "Unknown"))
+            pc = str(row.get("Effective_PostalCode__c", ""))
+            region = get_region_for_trade(pc, data.trade_group) if pc else "Unknown"
+            resource_id = str(row.get("ServiceResourceId", "")) # Using ServiceResourceId from fetch_service_resources
+            
+            submissions = 0
+            if not df_vcr.empty and resource_id:
+                # Count VCR records for this specific Service Resource ID
+                # The user confirmed: Current_Engineer_Assigned_to_Vehicle__c = ServiceResourceId
+                submissions = len(df_vcr[df_vcr["Current_Engineer_Assigned_to_Vehicle__c"].astype(str) == resource_id])
+
+            driver_stats.append({
+                "name": name,
+                "trade": trade,
+                "region": region,
+                "submissions": submissions,
+                "target": 2, # Fixed target per driver per user specification
+            })
+
+        # Sort alphabetically by name
+        driver_stats.sort(key=lambda o: o["name"])
+
+        return {
+            "drivers": driver_stats,
+            "trade_group": data.trade_group,
+            "total_count": len(driver_stats),
         }
     except Exception as e:
         traceback.print_exc()
@@ -692,6 +906,16 @@ def get_reactive_6plus(data: DrilldownReviewsRequest, request: Request):
         if df_attended.empty:
             return {"reactive_6plus": [], "trade_group": data.trade_group, "total_count": 0}
 
+        # NEW: Apply Region Filter
+        if data.region_filter != "All" and "PostalCode" in df_attended.columns:
+            df_attended = df_attended[
+                df_attended["PostalCode"].apply(
+                    lambda pc: get_region_for_trade(pc, data.trade_group) == data.region_filter
+                )
+            ]
+            if df_attended.empty:
+                return {"reactive_6plus": [], "trade_group": data.trade_group, "total_count": 0}
+
         # Get unique Job IDs for these attended SAs
         job_ids = tuple(df_attended["Job__c"].astype(str).unique())
         
@@ -752,7 +976,17 @@ def get_late_to_site(data: DrilldownReviewsRequest, request: Request):
             return {"engineers": [], "trade_group": data.trade_group, "total_late": 0, "total_sas": 0}
 
         df_sa["ActualStartTime"] = pd.to_datetime(df_sa.get("ActualStartTime"), errors="coerce")
-        df_sa["ArrivalWindowStartTime"] = pd.to_datetime(df_sa.get("ArrivalWindowStartTime"), errors="coerce")
+        df_sa["ArrivalWindowEndTime"] = pd.to_datetime(df_sa.get("ArrivalWindowEndTime"), errors="coerce")
+
+        # NEW: Apply Region Filter
+        if data.region_filter != "All" and "PostalCode" in df_sa.columns:
+            df_sa = df_sa[
+                df_sa["PostalCode"].apply(
+                    lambda pc: get_region_for_trade(pc, data.trade_group) == data.region_filter
+                )
+            ]
+            if df_sa.empty:
+                return {"engineers": [], "trade_group": data.trade_group, "total_late": 0, "total_sas": 0}
 
         # Flatten Allocated_Engineer__r.Name
         if "Allocated_Engineer__r" in df_sa.columns:
@@ -763,10 +997,10 @@ def get_late_to_site(data: DrilldownReviewsRequest, request: Request):
         else:
             df_sa["EngineerName"] = None
 
-        # Calculate late flag (same logic as compute_kpis: >30 min after arrival window)
-        valid = df_sa.dropna(subset=["ActualStartTime", "ArrivalWindowStartTime"]).copy()
+        # Calculate late flag (same logic as compute_kpis: ArrivalWindowEndTime + 0 min)
+        valid = df_sa.dropna(subset=["ActualStartTime", "ArrivalWindowEndTime"]).copy()
         valid["Late"] = (
-            (valid["ActualStartTime"] - valid["ArrivalWindowStartTime"]).dt.total_seconds() / 60 > 30
+            (valid["ActualStartTime"] - valid["ArrivalWindowEndTime"]).dt.total_seconds() / 60 > 0
         )
 
         # Group by engineer
@@ -836,6 +1070,20 @@ def get_cases_detail(data: DrilldownReviewsRequest, request: Request):
                     "engineer_name": eng_name,
                 })
 
+        # NEW: Apply Region Filter using service resource postcode crosswalk
+        if data.region_filter != "All" and not df.empty:
+            from backend import fetch_service_resources
+            df_engineers = fetch_service_resources()
+            if not df_engineers.empty:
+                # Build name -> region mapping
+                name_to_region = {}
+                for _, er in df_engineers.iterrows():
+                    ename = er.get("Engineer Name", "")
+                    pc = str(er.get("Effective_PostalCode__c", "") or "")
+                    region = get_region_for_trade(pc, data.trade_group) if pc else "Unknown"
+                    name_to_region[ename] = region
+                cases = [c for c in cases if name_to_region.get(c["engineer_name"], "Unknown") == data.region_filter]
+
         cases.sort(key=lambda c: c["case_number"])
 
         return {
@@ -904,6 +1152,14 @@ def get_tqr_not_satisfied(data: DrilldownReviewsRequest, request: Request):
             df_sa_tqr["Final_WO_Is_the_Customer_Satisfied__c"] == "No"
         ].drop_duplicates(subset=["Job__c"])
 
+        # NEW: Apply Region Filter
+        if data.region_filter != "All" and "PostalCode" in df_tqr_not_sat.columns:
+            df_tqr_not_sat = df_tqr_not_sat[
+                df_tqr_not_sat["PostalCode"].apply(
+                    lambda pc: get_region_for_trade(pc, data.trade_group) == data.region_filter
+                )
+            ]
+
         # Build job name lookup
         job_name_map = df_jobs.drop_duplicates("Job ID").set_index("Job ID")["Job Name"].to_dict()
 
@@ -950,6 +1206,14 @@ def get_review_details(data: DrilldownReviewsRequest, request: Request):
     attended = df[df["Status"] == "Visit Complete"].copy()
     attended["Review_Star_Rating__c"] = pd.to_numeric(attended["Review_Star_Rating__c"], errors="coerce")
     with_review = attended[attended["Review_Star_Rating__c"].notna()].copy()
+
+    # NEW: Apply Region Filter
+    if data.region_filter != "All" and "PostalCode" in with_review.columns:
+        with_review = with_review[
+            with_review["PostalCode"].apply(
+                lambda pc: get_region_for_trade(pc, data.trade_group) == data.region_filter
+            )
+        ]
 
     # Extract Job__r.Name from nested dictionary if it exists
     if "Job__r" in with_review.columns:
@@ -1023,12 +1287,28 @@ def get_dashboard(data: DashboardRequest, request: Request):
         threshold_key = req_group
         if req_trade and req_trade != "All":
             threshold_key = req_trade
+            
+        req_region = data.region_filter or "All"
 
-        result = compute_kpis(req_group, trades, start_iso, end_iso, scoring_key=threshold_key, bonus_trade=req_trade)
+        result = compute_kpis(
+            req_group, trades, start_iso, end_iso,
+            scoring_key=threshold_key, bonus_trade=req_trade, region_filter=req_region
+        )
+
+        # Fetch Base Bonus Pot from Google Sheet (Excel) for the blue card
+        bonus = dict(result["bonus"])
+        try:
+            from backend import get_gsheet_column_data
+            gsheet_data = get_gsheet_column_data(req_trade, req_region, req_group)
+            gsheet_pot = gsheet_data.get("Base Bonus Pot")
+            if gsheet_pot is not None:
+                bonus["gsheet_pot"] = float(gsheet_pot)
+        except Exception:
+            pass
 
         return {
             "overall_score": result["overall_score"],
-            "bonus": result["bonus"],
+            "bonus": bonus,
             "categories": result["categories"],
             "kpi_scores": result["kpi_scores"],
             "category_scores": result["category_scores"],

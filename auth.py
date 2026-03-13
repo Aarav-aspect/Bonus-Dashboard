@@ -111,12 +111,20 @@ ROLE_ALIAS_MAP = {
     "hvac_electrical": "HVac & Electrical",
     "building_fabric": "Building Fabric",
     "environmental_services": "Environmental Services",
+     
     "fire_safety": "Fire Safety",
     "leak_damp_restoration": "Leak, Damp & Restoration",
+    "leak_detection_restoration": "Leak, Damp & Restoration", 
+    "leak_detection_damp_restoration": "Leak, Damp & Restoration",
+    "leak_restoration": "Leak, Damp & Restoration",           
+    "ldr": "Leak, Damp & Restoration",                        
     "plumbing_drainage": "Plumbing & Drainage",
+    "plumbing_and_drainage": "Plumbing & Drainage",           
+    "drainage_plumbing": "Plumbing & Drainage",               
     # Sub-trades (add more as needed)
-    "air_conditioning": "Air Conditioning",
-    "gas_heating": "Gas & Heating",
+    "air_conditioning": "Gas & HVAC",
+    "gas_heating": "Gas & HVAC",
+    "gas_hvac": "Gas & HVAC",
     "electrical": "Electrical",
     "decoration": "Decoration",
     "roofing": "Roofing",
@@ -131,6 +139,12 @@ ROLE_ALIAS_MAP = {
     "damp": "Damp",
     "plumbing": "Plumbing",
     "drainage": "Drainage",
+    # Regions
+    "north_west": "North West",
+    "south_west": "South West",
+    "east": "East",
+    "north": "North",
+    "south": "South",
 }
 
 
@@ -151,17 +165,19 @@ def parse_role_claims(roles: list) -> dict:
       "trade_manager:hvac_electrical:gas_heating"   → role=trade_manager, assigned_group=HVac & Electrical, assigned_trade=Gas & Heating
 
     If a user has multiple roles, the highest-privilege one wins.
-    Priority: admin > manager > trade_group_manager > trade_manager > user
+    Priority: admin > manager > regional_trade_group_manager > regional_trade_manager > trade_group_manager > trade_manager > user
     """
     ROLE_PRIORITY = {
-        "admin": 5,
-        "manager": 4,
+        "admin": 7,
+        "manager": 6,
+        "regional_trade_group_manager": 5,
+        "regional_trade_manager": 4,
         "trade_group_manager": 3,
         "trade_manager": 2,
         "user": 1,
     }
 
-    best = {"role": "user", "assigned_group": None, "assigned_trade": None, "_priority": 0}
+    best = {"role": "user", "assigned_group": None, "assigned_trade": None, "assigned_region": None, "_priority": 0}
 
     for role_str in (roles or []):
         parts = role_str.split(":")
@@ -175,12 +191,29 @@ def parse_role_claims(roles: list) -> dict:
             continue
 
         assigned_group = _resolve_alias(parts[1]) if len(parts) > 1 else None
-        assigned_trade = _resolve_alias(parts[2]) if len(parts) > 2 else None
+        
+        # Specific logic for regional roles vs trade roles
+        assigned_trade = None
+        assigned_region = None
+
+        if base_role == "regional_trade_manager":
+            # pattern: regional_trade_manager:group:trade:region
+            assigned_trade = _resolve_alias(parts[2]) if len(parts) > 2 else None
+            assigned_region = _resolve_alias(parts[3]) if len(parts) > 3 else None
+        elif base_role == "regional_trade_group_manager":
+            # pattern: regional_trade_group_manager:group:region
+            assigned_region = _resolve_alias(parts[2]) if len(parts) > 2 else None
+        elif base_role == "trade_manager":
+            # pattern: trade_manager:group:trade
+            assigned_trade = _resolve_alias(parts[2]) if len(parts) > 2 else None
+        
+        # trade_group_manager pattern: trade_group_manager:group
 
         best = {
             "role": base_role,
             "assigned_group": assigned_group,
             "assigned_trade": assigned_trade,
+            "assigned_region": assigned_region,
             "_priority": priority,
         }
 
@@ -204,13 +237,14 @@ def create_session_token(user_data: dict) -> str:
         "role": user_data["role"],
         "assigned_group": user_data.get("assigned_group"),
         "assigned_trade": user_data.get("assigned_trade"),
+        "assigned_region": user_data.get("assigned_region"),
         "exp": datetime.utcnow() + timedelta(days=SESSION_EXPIRY_DAYS),
         "iat": datetime.utcnow(),
     }
     return jwt.encode(payload, JWT_SECRET, algorithm=JWT_ALGORITHM)
 
 
-def create_dev_token(role: str, group: str = None, trade: str = None) -> str:
+def create_dev_token(role: str, group: str = None, trade: str = None, region: str = None) -> str:
     """
     Create a session token for a developer/test user.
     """
@@ -221,6 +255,7 @@ def create_dev_token(role: str, group: str = None, trade: str = None) -> str:
         "role": role,
         "assigned_group": group,
         "assigned_trade": trade,
+        "assigned_region": region,
     }
     return create_session_token(user_data)
 
@@ -236,6 +271,7 @@ def decode_session_token(token: str) -> dict:
             "role": payload.get("role", "user"),
             "assigned_group": payload.get("assigned_group"),
             "assigned_trade": payload.get("assigned_trade"),
+            "assigned_region": payload.get("assigned_region"),
         }
     except JWTError:
         return None

@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import { fetchMonths, fetchTradeGroups, fetchTradeSubgroups, fetchKPIConfig, fetchBonusPots, fetchDashboard } from '../api';
 import Header from '../components/layout/Header';
 import { useAuth } from '../context/AuthContext';
+import { calculateLiveBonusPot } from '../utils/liveBonusPot';
 
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -24,7 +25,7 @@ const BONUS_BANDS = [
         badge: 'Gap',
         badgeFull: 'Below targets',
         min: 0,
-        max: 59,
+        max: 49,
         adjustment: -0.3,
         color: 'text-destructive', // brand.error
         bg: 'bg-destructive/10',     // brand.error.subtle
@@ -35,8 +36,8 @@ const BONUS_BANDS = [
         label: 'Meets targets',
         badge: 'Target',
         badgeFull: 'Meets targets',
-        min: 60,
-        max: 79,
+        min: 50,
+        max: 69,
         adjustment: 0,
         color: 'text-yellow-600', // brand.warning
         bg: 'bg-yellow-50',     // brand.warning.subtle
@@ -47,7 +48,7 @@ const BONUS_BANDS = [
         label: 'Exceeds targets',
         badge: 'Stretch',
         badgeFull: 'Exceeds targets',
-        min: 80,
+        min: 70,
         max: 100,
         adjustment: 0.15,
         color: 'text-support-green', // brand.support.green
@@ -165,17 +166,22 @@ const TradeTargets = () => {
     );
 
     const basePotForSelectedGroup = bonusPots[selectedGroup] || 0;
+
+    // Calculate live potentials
+    const { liveBasePot } = calculateLiveBonusPot(performanceData);
+    const effectiveBasePot = liveBasePot > 0 ? liveBasePot : basePotForSelectedGroup;
+
     const currentScore = performanceData?.overall_score || 0;
     const currentBand = BONUS_BANDS.find(b => currentScore >= b.min && currentScore <= b.max) || BONUS_BANDS[0];
-    const currentBonusValue = performanceData?.bonus?.bonus_value || (basePotForSelectedGroup * (1 + currentBand.adjustment));
+    const currentBonusValue = performanceData?.bonus?.bonus_value || (effectiveBasePot * (1 + currentBand.adjustment));
 
     // Group KPIs by category (manual mapping matches Dashboard)
     const categories = {
         "Conversion": ["Estimate Production / Reactive Leads %", "Estimate Conversion %", "FOC Conversion Rate %", "Average Converted Estimate Value (£)"],
         "Procedural": ["TQR Ratio %", "TQR (Not Satisfied) Ratio %", "Unclosed SA %", "Reactive 6+ hours %"],
         "Satisfaction": ["Average Review Rating", "Review Ratio %", "Engineer Satisfaction %", "Cases %", "Engineer Retention %"],
-        "Vehicular": ["Average Driving Score", "Drivers with <7 %", "VCR Update %"],
-        "Productivity": ["Ops Count %", "Sales Target Achievement %", "Monthly Working Time (hrs)", "Callback Jobs %", "SA Attended", "Average Site Value (£)", "Late to Site %", "Absence %"]
+        "Vehicular": ["Average Driving Score", "Drivers with <7", "VCR Update %"],
+        "Productivity": ["Ops Count %", "Sales Target Achievement %", "Callback Jobs %", "SA Attended", "Average Site Value (£)", "Late to Site %", "Absence %"]
     };
 
     const getThresholds = (kpiName) => {
@@ -249,7 +255,7 @@ const TradeTargets = () => {
                     {/* Scenario Cards */}
                     <Card className="grid grid-cols-1 md:grid-cols-3 gap-0 overflow-hidden rounded-b-2xl rounded-t-none border-black/5 shadow-sm">
                         {BONUS_BANDS.map((band, idx) => {
-                            const payout = basePotForSelectedGroup * (1 + band.adjustment);
+                            const payout = effectiveBasePot * (1 + band.adjustment);
                             const isCurrent = currentBand.id === band.id;
 
                             return (
@@ -367,8 +373,8 @@ const TradeTargets = () => {
                                                                 if (Array.isArray(thresholds)) {
                                                                     const match = thresholds.find(t => t.score === score);
                                                                     if (match) {
-                                                                        const isHighScore = score >= 80;
-                                                                        const isMedScore = score >= 60;
+                                                                        const isHighScore = score >= 70;
+                                                                        const isMedScore = score >= 50;
 
                                                                         // Tailwind color mapping
                                                                         if (isHighScore) cellClass = "bg-green-100 text-green-700 border border-green-200";

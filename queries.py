@@ -13,7 +13,7 @@ KEY_ACCOUNTS_FILTER_SA = (
 
 def get_service_resources_query() -> str:
     return """
-        SELECT Id, Name, RelatedRecord.Email, Email__c, Trade_Lookup__c
+        SELECT Id, Name, RelatedRecord.Email, Email__c, Trade_Lookup__c, Residential_PostalCode__c, Postcode_for_schedule_STM__c
         FROM ServiceResource
         WHERE Trade_Lookup__c != NULL 
         AND IsActive = true
@@ -49,9 +49,9 @@ def get_total_ops_count_query() -> str:
         AND Trade_Lookup__c != NULL
     """
 
-def get_cases_count_query(trades_str: str, start_iso: str, end_iso: str) -> str:
+def get_cases_data_query(trades_str: str, start_iso: str, end_iso: str) -> str:
     return f"""
-        SELECT COUNT(Id) cnt
+        SELECT Id, CaseNumber, Job__c, Case_Type__c, Service_Resource__r.Name
         FROM Case
         WHERE Service_Resource__r.Name != NULL
         AND Service_Resource__r.Trade_Lookup__c IN ({trades_str})
@@ -71,14 +71,15 @@ def get_cases_detail_query(trades_str: str, start_iso: str, end_iso: str) -> str
 
 def get_engineer_satisfaction_query(trades_str: str, start_iso: str, end_iso: str) -> str:
     return f"""
-        SELECT Total_Score__c, Service_Resource__r.Name, Service_Resource__r.Trade_Lookup__c
+        SELECT Total_Score__c, Service_Resource__c, Service_Resource__r.Name, Service_Resource__r.Trade_Lookup__c
         FROM Survey_Form__c
         WHERE Service_Resource__r.Trade_Lookup__c IN ({trades_str})
         AND CreatedDate >= {start_iso} AND CreatedDate < {end_iso}
         AND Total_Score__c != NULL
     """
 
-def get_total_invoice_sales_query(start_date: str, end_date: str) -> str:
+def get_total_invoice_sales_query(start_date: str, end_date: str, postal_codes: str = None) -> str:
+    region_filter = f"AND Site_Postal_Code__c IN ({postal_codes})" if postal_codes else ""
     return f"""
         SELECT SUM(Charge_Net__c) total_sales
         FROM Customer_Invoice__c
@@ -87,13 +88,28 @@ def get_total_invoice_sales_query(start_date: str, end_date: str) -> str:
         AND Chumley_Test_Record__c = false
         AND Date__c >= {start_date}
         AND Date__c <= {end_date}
+        {region_filter}
     """
 
-def get_filtered_invoice_sales_query(trade_list: str, start_date: str, end_date: str) -> str:
+def get_filtered_invoice_sales_query(trade_list: str, start_date: str, end_date: str, postal_codes: str = None) -> str:
+    region_filter = f"AND Site_Postal_Code__c IN ({postal_codes})" if postal_codes else ""
     return f"""
         SELECT SUM(Charge_Net__c) total_sales
         FROM Customer_Invoice__c
         WHERE Sector_Type__c != 'Key accounts'   
+        AND Account_Type__c != 'Key Account'
+        AND Chumley_Test_Record__c = false
+        AND Job_Trade__c IN ({trade_list})
+        AND Date__c >= {start_date}
+        AND Date__c <= {end_date}
+        {region_filter}
+    """
+
+def get_invoice_records_query(trade_list: str, start_date: str, end_date: str) -> str:
+    return f"""
+        SELECT Id, Charge_Net__c, Site_Postal_Code__c, Job_Trade__c
+        FROM Customer_Invoice__c
+        WHERE Sector_Type__c != 'Key accounts'
         AND Account_Type__c != 'Key Account'
         AND Chumley_Test_Record__c = false
         AND Job_Trade__c IN ({trade_list})
@@ -157,10 +173,12 @@ def get_service_appointments_query(id_str: str) -> str:
             CreatedDate,
             ActualStartTime,
             ArrivalWindowStartTime,
+            ArrivalWindowEndTime,
             Review_Star_Rating__c,
             Signed_SR__c,
             Job__r.Sector_Type__c,
-            Job__r.Account_Type__c
+            Job__r.Account_Type__c,
+            PostalCode
         FROM ServiceAppointment
         WHERE Job__c IN ({id_str})
         AND Chumley_Test_Account__c = false
@@ -170,7 +188,7 @@ def get_service_appointments_query(id_str: str) -> str:
 def get_service_appointments_month_query(trades_str: str, start_iso: str, end_iso: str) -> str:
     return f"""
         SELECT Id, AppointmentNumber, Job__c, Status, CreatedDate, ActualStartTime, Job__r.Job_Type_Trade__c,
-               Job__r.Sector_Type__c, Job__r.Account_Type__c, Job__r.Site_Id__c
+               Job__r.Sector_Type__c, Job__r.Account_Type__c, Job__r.Site_Id__c, PostalCode
         FROM ServiceAppointment 
         WHERE ActualStartTime >= {start_iso} AND ActualStartTime < {end_iso}
         AND Job__r.Job_Type_Trade__c IN ({trades_str})
@@ -190,9 +208,9 @@ def get_reactive_sas_query(trades_str: str, start_iso: str, end_iso: str) -> str
 
 def get_service_appointments_by_actual_start_query(trades_str: str, start_iso: str, end_iso: str) -> str:
     return f"""
-        SELECT Id, AppointmentNumber, Job__c, Job__r.Name, Status, CreatedDate, ActualStartTime, ArrivalWindowStartTime,
+        SELECT Id, AppointmentNumber, Job__c, Job__r.Name, Status, CreatedDate, ActualStartTime, ArrivalWindowStartTime, ArrivalWindowEndTime,
                Review_Star_Rating__c, Signed_SR__c, Allocated_Engineer__r.Name,
-               Job__r.Job_Type_Trade__c, Job__r.Sector_Type__c, Job__r.Account_Type__c, Job__r.Type__c
+               Job__r.Job_Type_Trade__c, Job__r.Sector_Type__c, Job__r.Account_Type__c, Job__r.Type__c, PostalCode
         FROM ServiceAppointment 
         WHERE ActualStartTime >= {start_iso} AND ActualStartTime < {end_iso}
         AND Job__r.Job_Type_Trade__c IN ({trades_str})
@@ -202,7 +220,7 @@ def get_service_appointments_by_actual_start_query(trades_str: str, start_iso: s
 def get_workorders_month_query(trades_str: str, start_iso: str, end_iso: str) -> str:
     return f"""
         SELECT Id, CreatedDate, CCT_Charge_NET__c, WO_Status__c,
-               Created_by_Profile_Name__c, Trade__c, Record_Type_Name__c, Status, Job__c
+               Created_by_Profile_Name__c, Trade__c, Record_Type_Name__c, Status, Job__c, PostalCode
         FROM WorkOrder WHERE CreatedDate >= {start_iso} AND CreatedDate < {end_iso}
         AND Trade__c IN ({trades_str})
     """

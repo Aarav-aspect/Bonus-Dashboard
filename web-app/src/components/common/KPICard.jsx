@@ -7,7 +7,7 @@ import {
     CheckCircle,
     AlertCircle,
     Clock,
-    DollarSign,
+    PoundSterling,
     Percent
 } from 'lucide-react';
 
@@ -22,7 +22,7 @@ const KPICard = ({ label, value, score, onClick }) => {
 
         if (typeof value === 'number') {
             if (isPct && !isRating) return `${value.toFixed(1)}%`;
-            if (isRating) return value.toFixed(1);
+            if (isRating || label === 'Average Driving Score') return value.toFixed(1);
             if (isCurrency) return `£${value.toLocaleString(undefined, { maximumFractionDigits: 0 })}`;
             return value.toLocaleString(undefined, { maximumFractionDigits: 1 });
         }
@@ -32,7 +32,7 @@ const KPICard = ({ label, value, score, onClick }) => {
     // Helper: Get Icon based on label
     const getIcon = (label) => {
         const l = label.toLowerCase();
-        if (l.includes('value') || l.includes('cost')) return <DollarSign className="h-4 w-4" />;
+        if (l.includes('value') || l.includes('cost')) return <PoundSterling className="h-4 w-4" />;
         if (l.includes('%') || l.includes('rate')) return <Percent className="h-4 w-4" />;
         if (l.includes('time') || l.includes('days')) return <Clock className="h-4 w-4" />;
         if (l.includes('score') || l.includes('rating')) return <Target className="h-4 w-4" />;

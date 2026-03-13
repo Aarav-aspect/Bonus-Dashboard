@@ -172,10 +172,10 @@ def enrich_kpis(kpis, raw_metrics):
             "denominator_label": None,
         }
 
-    # 16. Drivers with <7 %
-    if "Drivers with <7 %" in enriched:
-        val = enriched["Drivers with <7 %"]
-        enriched["Drivers with <7 %"] = {
+    # 16. Drivers with <7
+    if "Drivers with <7" in enriched:
+        val = enriched["Drivers with <7"]
+        enriched["Drivers with <7"] = {
             "value": val,
             "numerator": raw_metrics.get("drivers_below_7_count", 0),
             "denominator": raw_metrics.get("driver_count", 0),
@@ -191,7 +191,7 @@ def enrich_kpis(kpis, raw_metrics):
             "numerator": raw_metrics.get("vcr_count", 0),
             "denominator": raw_metrics.get("vcr_target", 0),
             "numerator_label": "VCR Forms Submitted",
-            "denominator_label": "Target (Ops × 4)",
+            "denominator_label": "Target (Ops × 2 biweekly)",
         }
 
     # ── Procedural ─────────────────────────────────────────────────────────────
@@ -238,6 +238,17 @@ def enrich_kpis(kpis, raw_metrics):
             "denominator": raw_metrics.get("reactive_jobs_count", 0),
             "numerator_label": "Reactive Jobs ≥ 6 hrs",
             "denominator_label": "Total Reactive Jobs",
+        }
+
+    # 22. Engineer Retention %
+    if "Engineer Retention %" in enriched:
+        val = enriched["Engineer Retention %"]
+        enriched["Engineer Retention %"] = {
+            "value": val,
+            "numerator": raw_metrics.get("ops_count", 0),
+            "denominator": raw_metrics.get("ops_baseline", 0),
+            "numerator_label": "Current Ops",
+            "denominator_label": "Baseline Ops (Start of Month)"
         }
 
     return enriched

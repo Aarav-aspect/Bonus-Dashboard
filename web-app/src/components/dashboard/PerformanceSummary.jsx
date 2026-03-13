@@ -2,20 +2,25 @@ import React, { useState } from 'react';
 import { Card } from "@/components/ui/card"
 import AspectLogo from '@/assets/aspectLogoIcon.svg';
 import ShareholderDetailModal from '../drilldown/ShareholderDetailModal';
+import { calculateLiveBonusPot } from '../../utils/liveBonusPot';
 
-const PerformanceSummary = ({ overallScore, bonus, liveCollections, liveLabour, liveMaterials, showTitle = true }) => {
+const PerformanceSummary = ({ overallScore, bonus, liveCollections, liveLabour, liveMaterials, tradeFilter, region, tradeGroup, showTitle = true }) => {
     const [isShareholderModalOpen, setIsShareholderModalOpen] = useState(false);
 
     // Determine color class based on score
     let progressColorClass = "bg-support-red";
-    if (overallScore >= 80) progressColorClass = "bg-support-green";
-    else if (overallScore >= 60) progressColorClass = "bg-support-orange";
+    if (overallScore >= 70) progressColorClass = "bg-support-green";
+    else if (overallScore >= 50) progressColorClass = "bg-support-orange";
 
     // Shareholder Calculations
-    const grossProfit = (liveCollections || 0) - (liveLabour || 0) - (liveMaterials || 0);
-    const shareholderBasePot = grossProfit * 0.01;
+    const { liveBasePot: shareholderBasePot, liveBonusPot: shareholderCurrent } = calculateLiveBonusPot({
+        live_collections: liveCollections,
+        live_labour: liveLabour,
+        live_materials: liveMaterials,
+        bonus
+    });
+
     const shareholderMax = shareholderBasePot * 1.3;
-    const shareholderCurrent = shareholderBasePot * (1 + (bonus?.multiplier || 0));
 
     return (
         <div className="mb-10">
@@ -81,7 +86,7 @@ const PerformanceSummary = ({ overallScore, bonus, liveCollections, liveLabour, 
                         </div>
                         <div className="flex justify-between text-sm text-brand-yellow">
                             <span className="font-bold">Adjustment</span>
-                            <strong className="font-black">{(bonus?.multiplier * 100).toFixed(1)}%</strong>
+                            <strong className="font-black">{bonus?.multiplier > 0 ? '+' : ''}{(bonus?.multiplier * 100).toFixed(0)}%</strong>
                         </div>
                     </div>
                 </Card>
@@ -131,7 +136,7 @@ const PerformanceSummary = ({ overallScore, bonus, liveCollections, liveLabour, 
                         </div>
                         <div className="flex justify-between text-sm text-brand-yellow">
                             <span className="font-bold">Adjustment</span>
-                            <strong className="font-black">{(bonus?.multiplier * 100).toFixed(1)}%</strong>
+                            <strong className="font-black">{bonus?.multiplier > 0 ? '+' : ''}{(bonus?.multiplier * 100).toFixed(0)}%</strong>
                         </div>
                     </div>
                 </Card>
@@ -143,6 +148,9 @@ const PerformanceSummary = ({ overallScore, bonus, liveCollections, liveLabour, 
                 liveCollections={liveCollections}
                 liveLabour={liveLabour}
                 liveMaterials={liveMaterials}
+                tradeFilter={tradeFilter}
+                region={region}
+                tradeGroup={tradeGroup}
             />
         </div>
     );

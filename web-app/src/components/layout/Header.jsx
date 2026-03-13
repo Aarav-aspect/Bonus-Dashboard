@@ -19,10 +19,13 @@ const Header = ({
     selectedMonth,
     selectedGroup,
     selectedFilter,
+    selectedRegion,
     onMonthChange,
     onGroupChange,
     onFilterChange,
+    onRegionChange,
     availableSubgroups = {},
+    availableRegions = ["All"],
     showMonthFilter = true,
     showGroupFilter = true,
 }) => {
@@ -93,15 +96,17 @@ const Header = ({
                     )}
 
                     {/* Trade Group Filter */}
-                    {showGroupFilter && (
+                    {showGroupFilter && user && (
                         <div className="flex flex-col gap-1">
                             <span className="text-[9px] font-bold text-muted-foreground uppercase pl-1 tracking-wider">Trade Group</span>
                             <Select
                                 value={selectedGroup}
                                 onValueChange={onGroupChange}
-                                disabled={user?.role === 'trade_group_manager' || user?.role === 'trade_manager'}
                             >
-                                <SelectTrigger className="w-[180px] h-8 rounded-md border border-input bg-white px-2 py-1 text-xs shadow-sm hover:border-brand-blue focus:ring-1 focus:ring-brand-blue transition-all font-bold disabled:opacity-80 disabled:bg-gray-50">
+                                <SelectTrigger
+                                    disabled={!!user?.assigned_group}
+                                    className="w-[180px] h-8 rounded-md border border-input bg-white px-2 py-1 text-xs shadow-sm hover:border-brand-blue focus:ring-1 focus:ring-brand-blue transition-all font-bold disabled:opacity-80 disabled:bg-gray-50"
+                                >
                                     <SelectValue placeholder="Select Group" />
                                 </SelectTrigger>
                                 <SelectContent className="rounded-xl border-black/5 shadow-lg bg-white">
@@ -113,7 +118,7 @@ const Header = ({
                         </div>
                     )}
 
-                    {showGroupFilter && Object.keys(availableSubgroups).length > 0 && (
+                    {showGroupFilter && Object.keys(availableSubgroups).length > 0 && user && (
                         <>
                             {/* Trade Filter */}
                             <div className="flex flex-col gap-1">
@@ -121,9 +126,11 @@ const Header = ({
                                 <Select
                                     value={selectedFilter}
                                     onValueChange={onFilterChange}
-                                    disabled={user?.role === 'trade_manager'}
                                 >
-                                    <SelectTrigger className="w-[160px] h-8 rounded-md border border-input bg-white px-2 py-1 text-xs shadow-sm hover:border-brand-blue focus:ring-1 focus:ring-brand-blue transition-all font-bold disabled:opacity-80 disabled:bg-gray-50">
+                                    <SelectTrigger
+                                        disabled={!!user?.assigned_trade}
+                                        className="w-[160px] h-8 rounded-md border border-input bg-white px-2 py-1 text-xs shadow-sm hover:border-brand-blue focus:ring-1 focus:ring-brand-blue transition-all font-bold disabled:opacity-80 disabled:bg-gray-50"
+                                    >
                                         <SelectValue placeholder="Select Trade" />
                                     </SelectTrigger>
                                     <SelectContent className="rounded-xl border-black/5 shadow-lg bg-white">
@@ -135,6 +142,28 @@ const Header = ({
                                 </Select>
                             </div>
                         </>
+                    )}
+
+                    {showGroupFilter && availableRegions.length > 1 && user && (
+                        <div className="flex flex-col gap-1">
+                            <span className="text-[9px] font-bold text-muted-foreground uppercase pl-1 tracking-wider">Region</span>
+                            <Select
+                                value={selectedRegion}
+                                onValueChange={onRegionChange}
+                            >
+                                <SelectTrigger
+                                    disabled={!!user?.assigned_region}
+                                    className="w-[120px] h-8 rounded-md border border-input bg-white px-2 py-1 text-xs shadow-sm hover:border-brand-blue focus:ring-1 focus:ring-brand-blue transition-all font-bold disabled:opacity-80 disabled:bg-gray-50"
+                                >
+                                    <SelectValue placeholder="Select Region" />
+                                </SelectTrigger>
+                                <SelectContent className="rounded-xl border-black/5 shadow-lg bg-white">
+                                    {availableRegions.map(reg => (
+                                        <SelectItem key={reg} value={reg} className="font-bold focus:bg-brand-blue/10 focus:text-brand-blue cursor-pointer rounded-lg my-1">{reg === "All" ? "All Regions" : reg}</SelectItem>
+                                    ))}
+                                </SelectContent>
+                            </Select>
+                        </div>
                     )}
                 </div>
             )}

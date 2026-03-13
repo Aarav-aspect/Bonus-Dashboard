@@ -2,7 +2,7 @@
 
 KPI_DRILLDOWNS = {
 
-    "Drivers with <7 %": {
+    "Drivers with <7": {
         "title": "Drivers",                  # Modal title prefix
         "data_source": "drivers",            # maps to /api/drilldown/drivers
         "columns": [
@@ -27,6 +27,19 @@ KPI_DRILLDOWNS = {
         "summary_cards": [
             {"key": "total_count",   "label": "Total Drivers", "color": "neutral"},
             {"key": "below_7_count", "label": "Below 7",       "color": "red"},
+        ],
+    },
+
+    "VCR Update %": {
+        "title": "VCR Submissions",
+        "data_source": "vcr_update",         # maps to /api/drilldown/vcr-update
+        "columns": [
+            {"key": "name",        "label": "Name",       "type": "text"},
+            {"key": "submissions", "label": "Submitted",  "type": "text"},
+            {"key": "target",      "label": "Target",     "type": "text"},
+        ],
+        "summary_cards": [
+            {"key": "total_count", "label": "Total Drivers", "color": "neutral"},
         ],
     },
 
@@ -124,6 +137,19 @@ KPI_DRILLDOWNS = {
         ],
         "summary_cards": [
             {"key": "total_count", "label": "Total Cases", "color": "red"},
+        ],
+    },
+    
+    "Engineer Retention %": {
+        "title": "Ops",
+        "data_source": "ops_list",
+        "columns": [
+            {"key": "name",  "label": "Name",  "type": "text"},
+            {"key": "trade", "label": "Trade", "type": "text"},
+            {"key": "region", "label": "Region", "type": "text"},
+        ],
+        "summary_cards": [
+            {"key": "total_count", "label": "Current Ops", "color": "neutral"},
         ],
     },
 }

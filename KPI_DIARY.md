@@ -127,7 +127,7 @@ Measures the volume and financial throughput of the trade group.
 
 ### Late to Site %
 - **Purpose**: Punctuality metric based on arrival windows.
-- **Calculation**: `(SAs where Actual Start > Arrival Window Start + 30m / Total SAs) * 100`
+- **Calculation**: `(SAs where Actual Start > Arrival Window End / Total SAs) * 100`
 
 ### Absence %
 - **Purpose**: Group-wide absence rate.
@@ -136,3 +136,6 @@ Measures the volume and financial throughput of the trade group.
 ---
 > [!NOTE]
 > All targets and thresholds are defined in `thresholds.json` and are specific to each Trade Group.
+
+
+git add . && git commit -m "fix: restore Vehicular KPI by adding Webfleet credential support via env vars" && git push origin main && gcloud run deploy aspect-kpis-and-rewards --source . --region europe-west2 --allow-unauthenticated --set-env-vars="SF_USERNAME=tech@aspect.co.uk,SF_PASSWORD=TuanIsTheBest12,SF_SECURITY_TOKEN=9AHwz5yyDyEP4NulU84JFJdl,SF_DOMAIN=login,WF_ACCOUNT=maintenance-823,WF_USERNAME=Pavlo Manko,WF_PASSWORD=Oldpass1221eac-4b56-96de-748bbe9c4083"

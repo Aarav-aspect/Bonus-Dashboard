@@ -4,11 +4,12 @@ import Header from '../components/layout/Header';
 import PerformanceSummary from '../components/dashboard/PerformanceSummary';
 import CategoryBlock from '../components/dashboard/CategoryBlock';
 import { SummarySkeleton, CategorySkeleton } from '../components/common/Skeleton';
-import { fetchMonths, fetchTradeGroups, fetchTradeSubgroups, fetchDashboard, fetchKPIConfig, fetchDrilldownConfig } from '../api';
+import { fetchMonths, fetchTradeGroups, fetchTradeSubgroups, fetchDashboard, fetchKPIConfig, fetchDrilldownConfig, fetchRegionOptions } from '../api';
 import { colors } from '../constants/colors';
 import { Loader2 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import InitialLoader from '../components/common/InitialLoader';
+import { calculateLiveBonusPot } from '../utils/liveBonusPot';
 
 function Dashboard() {
     const { user } = useAuth();
@@ -18,10 +19,12 @@ function Dashboard() {
     const [tradeSubgroups, setTradeSubgroups] = useState({});
     const [kpiConfig, setKpiConfig] = useState({});
     const [drilldownConfig, setDrilldownConfig] = useState({});
+    const [regionMeta, setRegionMeta] = useState({ phases: {}, options: {} });
 
     const [selectedMonth, setSelectedMonth] = useState("");
     const [selectedGroup, setSelectedGroup] = useState("");
     const [selectedFilter, setSelectedFilter] = useState("All");
+    const [selectedRegion, setSelectedRegion] = useState("All");
 
     const [data, setData] = useState(null);
     const [loading, setLoading] = useState(false);
@@ -31,12 +34,13 @@ function Dashboard() {
     useEffect(() => {
         async function loadMeta() {
             try {
-                const [mdata, gdata, sdata, kdata, ddata] = await Promise.all([
+                const [mdata, gdata, sdata, kdata, ddata, rdata] = await Promise.all([
                     fetchMonths(),
                     fetchTradeGroups(),
                     fetchTradeSubgroups(),
                     fetchKPIConfig(),
-                    fetchDrilldownConfig()
+                    fetchDrilldownConfig(),
+                    fetchRegionOptions()
                 ]);
 
                 setMonths(mdata);
@@ -44,6 +48,7 @@ function Dashboard() {
                 setTradeSubgroups(sdata);
                 setKpiConfig(kdata);
                 setDrilldownConfig(ddata);
+                setRegionMeta(rdata);
 
                 if (mdata.length > 0) {
                     setSelectedMonth(mdata[0]);
@@ -63,6 +68,11 @@ function Dashboard() {
                     setSelectedFilter(user.assigned_trade);
                 }
 
+                // If user has an assigned region, pre-select it.
+                if (user?.assigned_region) {
+                    setSelectedRegion(user.assigned_region);
+                }
+
             } catch (err) {
                 console.error(err);
                 setError("Failed to load application metadata.");
@@ -78,7 +88,7 @@ function Dashboard() {
             setLoading(true);
             setError(null);
             try {
-                const result = await fetchDashboard(selectedMonth, selectedGroup, selectedFilter);
+                const result = await fetchDashboard(selectedMonth, selectedGroup, selectedFilter, selectedRegion);
                 setData(result);
             } catch (err) {
                 console.error(err);
@@ -89,18 +99,25 @@ function Dashboard() {
         }
 
         loadDashboard();
-    }, [selectedMonth, selectedGroup, selectedFilter]);
+    }, [selectedMonth, selectedGroup, selectedFilter, selectedRegion]);
 
 
     const handleGroupChange = (grp) => {
         setSelectedGroup(grp);
         setSelectedFilter("All");
+        setSelectedRegion("All");
     };
 
     if (!selectedMonth || loading && !data) return <InitialLoader text="Preparing Your Dashboard..." />;
     if (loading) return <InitialLoader text="Updating your data..." />;
 
     const currentSubgroups = tradeSubgroups[selectedGroup] || {};
+
+    // Determine available regions for current trade group
+    const currentPhase = regionMeta.phases[selectedGroup] || 1;
+    const availableRegions = regionMeta.options[currentPhase] || ["All"];
+
+    const { liveBasePot, liveBonusPot } = calculateLiveBonusPot(data);
 
     return (
         <div className="min-h-screen bg-white pb-20 relative">
@@ -113,10 +130,13 @@ function Dashboard() {
                     selectedMonth={selectedMonth}
                     selectedGroup={selectedGroup}
                     selectedFilter={selectedFilter}
+                    selectedRegion={selectedRegion}
                     onMonthChange={setSelectedMonth}
                     onGroupChange={handleGroupChange}
                     onFilterChange={setSelectedFilter}
+                    onRegionChange={setSelectedRegion}
                     availableSubgroups={currentSubgroups}
+                    availableRegions={availableRegions}
                     showMonthFilter={false}
                 />
 
@@ -137,6 +157,9 @@ function Dashboard() {
                             liveCollections={data.live_collections}
                             liveLabour={data.live_labour}
                             liveMaterials={data.live_materials}
+                            tradeFilter={selectedFilter}
+                            region={selectedRegion}
+                            tradeGroup={selectedGroup}
                         />
 
                         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8 items-start">
@@ -149,14 +172,15 @@ function Dashboard() {
                                         kpis={data.categories["Conversion"]}
                                         kpiScores={data.kpi_scores}
                                         categoryScore={data.category_scores["Conversion"]}
-                                        bonusPot={data.bonus?.bonus_value || 0}
-                                        basePot={data.bonus?.pot || 0}
+                                        bonusPot={liveBonusPot}
+                                        basePot={liveBasePot}
                                         overallScore={data.overall_score}
                                         kpiConfig={kpiConfig}
                                         activeTrade={selectedFilter}
                                         tradeGroup={selectedGroup}
                                         drilldownConfig={drilldownConfig}
                                         selectedMonth={selectedMonth}
+                                        selectedRegion={selectedRegion}
                                     />
                                 )}
                                 {data.categories["Procedural"] && (
@@ -165,14 +189,15 @@ function Dashboard() {
                                         kpis={data.categories["Procedural"]}
                                         kpiScores={data.kpi_scores}
                                         categoryScore={data.category_scores["Procedural"]}
-                                        bonusPot={data.bonus?.bonus_value || 0}
-                                        basePot={data.bonus?.pot || 0}
+                                        bonusPot={liveBonusPot}
+                                        basePot={liveBasePot}
                                         overallScore={data.overall_score}
                                         kpiConfig={kpiConfig}
                                         activeTrade={selectedFilter}
                                         tradeGroup={selectedGroup}
                                         drilldownConfig={drilldownConfig}
                                         selectedMonth={selectedMonth}
+                                        selectedRegion={selectedRegion}
                                     />
                                 )}
                             </div>
@@ -185,14 +210,15 @@ function Dashboard() {
                                         kpis={data.categories["Satisfaction"]}
                                         kpiScores={data.kpi_scores}
                                         categoryScore={data.category_scores["Satisfaction"]}
-                                        bonusPot={data.bonus?.bonus_value || 0}
-                                        basePot={data.bonus?.pot || 0}
+                                        bonusPot={liveBonusPot}
+                                        basePot={liveBasePot}
                                         overallScore={data.overall_score}
                                         kpiConfig={kpiConfig}
                                         activeTrade={selectedFilter}
                                         tradeGroup={selectedGroup}
                                         drilldownConfig={drilldownConfig}
                                         selectedMonth={selectedMonth}
+                                        selectedRegion={selectedRegion}
                                     />
                                 )}
                                 {data.categories["Vehicular"] && (
@@ -201,14 +227,15 @@ function Dashboard() {
                                         kpis={data.categories["Vehicular"]}
                                         kpiScores={data.kpi_scores}
                                         categoryScore={data.category_scores["Vehicular"]}
-                                        bonusPot={data.bonus?.bonus_value || 0}
-                                        basePot={data.bonus?.pot || 0}
+                                        bonusPot={liveBonusPot}
+                                        basePot={liveBasePot}
                                         overallScore={data.overall_score}
                                         kpiConfig={kpiConfig}
                                         activeTrade={selectedFilter}
                                         tradeGroup={selectedGroup}
                                         drilldownConfig={drilldownConfig}
                                         selectedMonth={selectedMonth}
+                                        selectedRegion={selectedRegion}
                                     />
                                 )}
                             </div>
@@ -221,14 +248,15 @@ function Dashboard() {
                                         kpis={data.categories["Productivity"]}
                                         kpiScores={data.kpi_scores}
                                         categoryScore={data.category_scores["Productivity"]}
-                                        bonusPot={data.bonus?.bonus_value || 0}
-                                        basePot={data.bonus?.pot || 0}
+                                        bonusPot={liveBonusPot}
+                                        basePot={liveBasePot}
                                         overallScore={data.overall_score}
                                         kpiConfig={kpiConfig}
                                         activeTrade={selectedFilter}
                                         tradeGroup={selectedGroup}
                                         drilldownConfig={drilldownConfig}
                                         selectedMonth={selectedMonth}
+                                        selectedRegion={selectedRegion}
                                     />
                                 )}
                             </div>

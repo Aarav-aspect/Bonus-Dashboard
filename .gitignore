@@ -5,6 +5,7 @@ __pycache__/
 .venv/
 venv/
 *.env
+*.log
 
 # Secrets
 secrets.toml
@@ -12,6 +13,8 @@ cookies.txt
 ops_not_on_webfleet.txt
 debug_ops_not_on_webfleet.py
 foc_debug.txt
+bonus-dashboard-9e3fb8d8d57d.json
+ops_report.json
 
 # Node
 node_modules/

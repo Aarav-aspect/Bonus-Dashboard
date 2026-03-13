@@ -10,11 +10,14 @@ import { Input } from "@/components/ui/input";
 import {
     Select,
     SelectContent,
+    SelectGroup,
     SelectItem,
+    SelectLabel,
     SelectTrigger,
     SelectValue,
 } from "@/components/ui/select";
 import { Separator } from "@/components/ui/separator";
+import { Plus, Minus, Trash2 } from 'lucide-react';
 
 const Thresholds = () => {
     // DATA
@@ -33,7 +36,8 @@ const Thresholds = () => {
     // Edit States
     const [newPotValue, setNewPotValue] = useState(0);
     const [thresholds, setThresholds] = useState([]);
-    const [gridThresholds, setGridThresholds] = useState({}); // Array of {min/max, score} or just values for dynamic
+    const [gridThresholds, setGridThresholds] = useState({});
+    const [dynamicScores, setDynamicScores] = useState([]);
 
     const [loading, setLoading] = useState(true);
     const [message, setMessage] = useState(null);
@@ -91,6 +95,58 @@ const Thresholds = () => {
         return true;
     });
 
+    const KPI_CATEGORIES = {
+        "Conversion": [
+            "Estimate Production / Reactive Leads %",
+            "Estimate Conversion %",
+            "FOC Conversion Rate %",
+            "Average Converted Estimate Value (£)",
+            "Conversion Rate (%)"
+        ],
+        "Procedural": [
+            "TQR Ratio %",
+            "TQR (Not Satisfied) Ratio %",
+            "Unclosed SA %",
+            "Reactive 6+ hours %",
+            "Reactive 6+ Hours (%)"
+        ],
+        "Satisfaction": [
+            "Average Review Rating",
+            "Review Ratio %",
+            "Engineer Satisfaction %",
+            "Cases %",
+            "Engineer Retention %"
+        ],
+        "Vehicular": [
+            "Average Driving Score",
+            "Drivers with <7",
+            "VCR Update %"
+        ],
+        "Productivity": [
+            "Ops Count %",
+            "Sales Target Achievement %",
+            "Callback Jobs %",
+            "Callback Jobs",
+            "SA Attended",
+            "Average Site Value (£)",
+            "Late to Site %",
+            "Absence %"
+        ]
+    };
+
+    const groupedKpis = {};
+    availableKpis.forEach(kpi => {
+        let foundCategory = "Other";
+        for (const [category, kpis] of Object.entries(KPI_CATEGORIES)) {
+            if (kpis.includes(kpi)) {
+                foundCategory = category;
+                break;
+            }
+        }
+        if (!groupedKpis[foundCategory]) groupedKpis[foundCategory] = [];
+        groupedKpis[foundCategory].push(kpi);
+    });
+
     // Default KPI selection
     useEffect(() => {
         if (availableKpis.length > 0 && !availableKpis.includes(selectedKpi)) {
@@ -100,8 +156,7 @@ const Thresholds = () => {
 
     // Trade mapping for dynamic KPIs: Dashboard Detailed Trade -> Backend Config Key
     const TRADE_TO_DYNAMIC_KEY = {
-        "Air Conditioning": "HVAC",
-        "Gas & Heating": "HVAC",
+        "Gas & HVAC": "HVAC",
         "Electrical": "Electrical",
         "Plumbing": "Plumbing",
         "Plumbing & Cold Water": "Plumbing"
@@ -142,7 +197,7 @@ const Thresholds = () => {
                     setSelectedTrade(activeTrade);
                 }
 
-                // Map the active UI trade to the config key (e.g. "Air Conditioning" -> "HVAC")
+                // Map the active UI trade to the config key (e.g. "Gas & HVAC" -> "HVAC")
                 let configKey = activeTrade;
                 if (activeTrade !== selectedGroup && TRADE_TO_DYNAMIC_KEY[activeTrade]) {
                     configKey = TRADE_TO_DYNAMIC_KEY[activeTrade];
@@ -175,6 +230,13 @@ const Thresholds = () => {
                         setThresholds([]);
                     }
                     setGridThresholds({});
+                }
+
+                // Track dynamic scores so they can be modified
+                if (cfg.dynamic.scores) {
+                    setDynamicScores([...cfg.dynamic.scores]);
+                } else {
+                    setDynamicScores([]);
                 }
             }
             // Static KPI - load regular thresholds
@@ -226,19 +288,69 @@ const Thresholds = () => {
         setGridThresholds(newGrid);
     };
 
+    const handleAddDynamicRow = (index) => {
+        const newScores = [...dynamicScores];
+        const prevScore = newScores[index] || 0;
+        newScores.splice(index + 1, 0, Math.max(0, prevScore - 5));
+        setDynamicScores(newScores);
+
+        if (selectedTrade === selectedGroup) {
+            const newGrid = { ...gridThresholds };
+            Object.keys(newGrid).forEach(k => {
+                newGrid[k] = [...newGrid[k]];
+                newGrid[k].splice(index + 1, 0, k === "All" ? '' : 0);
+            });
+            setGridThresholds(newGrid);
+        } else {
+            const newThresh = [...thresholds];
+            newThresh.splice(index + 1, 0, 0);
+            setThresholds(newThresh);
+        }
+    };
+
+    const handleRemoveDynamicRow = (index) => {
+        const newScores = [...dynamicScores];
+        newScores.splice(index, 1);
+        setDynamicScores(newScores);
+
+        if (selectedTrade === selectedGroup) {
+            const newGrid = { ...gridThresholds };
+            Object.keys(newGrid).forEach(k => {
+                newGrid[k] = [...newGrid[k]];
+                newGrid[k].splice(index, 1);
+            });
+            setGridThresholds(newGrid);
+        } else {
+            const newThresh = [...thresholds];
+            newThresh.splice(index, 1);
+            setThresholds(newThresh);
+        }
+    };
+
+    const handleAddStaticRow = (index) => {
+        const newThresh = [...thresholds];
+        newThresh.splice(index + 1, 0, { min: 0, max: 0, score: 0 });
+        setThresholds(newThresh);
+    };
+
+    const handleRemoveStaticRow = (index) => {
+        const newThresh = [...thresholds];
+        newThresh.splice(index, 1);
+        setThresholds(newThresh);
+    };
+
+
     const handleSaveThresholds = async () => {
         const cfg = kpiConfig[selectedKpi];
-        const payload = thresholds; // The current state of thresholds to be saved
-        const newConfig = { ...kpiConfig }; // Create a mutable copy
+        const payload = thresholds;
+        const newConfig = { ...kpiConfig };
 
         try {
             // Dynamic KPI - save trade-specific thresholds
             if (cfg.dynamic && cfg.dynamic.type === 'trade_based') {
-                const isAll = selectedTrade === selectedGroup; // "All Trades" option maps to the group name
+                const isAll = selectedTrade === selectedGroup;
                 if (selectedGroup === "__ALL__") {
-                    // Save to ALL trade groups at once
-                    await updateDynamicThresholdAll(selectedKpi, payload);
-                    // Update local config for all trades in all groups
+                    await updateDynamicThresholdAll(selectedKpi, payload, dynamicScores);
                     Object.keys(tradeGroups).forEach(groupName => {
                         const tradesForGroup = Object.keys(tradeSubgroups[groupName] || {});
                         tradesForGroup.forEach(t => {
@@ -248,7 +360,6 @@ const Thresholds = () => {
                             }
                             newConfig[selectedKpi].dynamic.thresholds_by_trade[configKey] = payload;
                         });
-                        // Also update the group-level entry if it exists
                         if (!newConfig[selectedKpi].dynamic.thresholds_by_trade) {
                             newConfig[selectedKpi].dynamic.thresholds_by_trade = {};
                         }
@@ -256,50 +367,55 @@ const Thresholds = () => {
                     });
                     setMessage({ type: 'success', text: `Saved thresholds for ${selectedKpi} across all trade groups` });
                 } else if (isAll) {
-                    // We are in Grid Mode for a specific group
+                    const isGridKpi = ["Average Site Value (£)", "SA Attended"].includes(selectedKpi);
                     const tradesForGroup = Object.keys(tradeSubgroups[selectedGroup] || {});
-
                     if (!newConfig[selectedKpi].dynamic.thresholds_by_trade) {
                         newConfig[selectedKpi].dynamic.thresholds_by_trade = {};
                     }
 
-                    // Save each trade individually
-                    await Promise.all(tradesForGroup.map(async (t) => {
-                        const configKey = TRADE_TO_DYNAMIC_KEY[t] || t;
-                        const rawPayload = gridThresholds[t] || [];
-                        const tradePayload = rawPayload.map(val => {
+                    if (isGridKpi) {
+                        await Promise.all(tradesForGroup.map(async (t) => {
+                            const configKey = TRADE_TO_DYNAMIC_KEY[t] || t;
+                            const rawPayload = gridThresholds[t] || [];
+                            const tradePayload = rawPayload.map(val => {
+                                const num = parseFloat(val);
+                                return isNaN(num) ? 0 : num;
+                            });
+
+                            await updateDynamicThreshold(selectedKpi, configKey, tradePayload, dynamicScores);
+                            newConfig[selectedKpi].dynamic.thresholds_by_trade[configKey] = tradePayload;
+                        }));
+
+                        const rawAllPayload = gridThresholds["All"] || [];
+                        const allPayload = rawAllPayload.map(val => {
                             const num = parseFloat(val);
                             return isNaN(num) ? 0 : num;
                         });
+                        newConfig[selectedKpi].dynamic.thresholds_by_trade[selectedGroup] = allPayload;
+                        await updateDynamicThreshold(selectedKpi, selectedGroup, allPayload, dynamicScores);
+                    } else {
+                        await Promise.all(tradesForGroup.map(async (t) => {
+                            const configKey = TRADE_TO_DYNAMIC_KEY[t] || t;
+                            await updateDynamicThreshold(selectedKpi, configKey, payload, dynamicScores);
+                            newConfig[selectedKpi].dynamic.thresholds_by_trade[configKey] = payload;
+                        }));
 
-                        await updateDynamicThreshold(selectedKpi, configKey, tradePayload);
-                        newConfig[selectedKpi].dynamic.thresholds_by_trade[configKey] = tradePayload;
-                    }));
-
-                    // Optional: update the fallback group key (from the 'All' column)
-                    const rawAllPayload = gridThresholds["All"] || [];
-                    const allPayload = rawAllPayload.map(val => {
-                        const num = parseFloat(val);
-                        return isNaN(num) ? 0 : num;
-                    });
-                    newConfig[selectedKpi].dynamic.thresholds_by_trade[selectedGroup] = allPayload;
-                    await updateDynamicThresholdAll(selectedKpi, allPayload);
+                        newConfig[selectedKpi].dynamic.thresholds_by_trade[selectedGroup] = payload;
+                        await updateDynamicThreshold(selectedKpi, selectedGroup, payload, dynamicScores);
+                    }
 
                     setMessage({ type: 'success', text: `Saved thresholds for all trades in ${selectedGroup} for ${selectedKpi}` });
                 } else {
-                    // Determine the config key for the specific trade
                     const configKey = TRADE_TO_DYNAMIC_KEY[selectedTrade] || selectedTrade;
-                    await updateDynamicThreshold(selectedKpi, configKey, payload);
+                    await updateDynamicThreshold(selectedKpi, configKey, payload, dynamicScores);
                     if (!newConfig[selectedKpi].dynamic.thresholds_by_trade) {
                         newConfig[selectedKpi].dynamic.thresholds_by_trade = {};
                     }
                     newConfig[selectedKpi].dynamic.thresholds_by_trade[configKey] = payload;
                     setMessage({ type: 'success', text: `Saved ${selectedTrade} thresholds for ${selectedKpi}` });
                 }
-                setKpiConfig(newConfig); // Update state with the modified config
-            }
-            // Static KPI - save regular thresholds (always global)
-            else {
+                setKpiConfig(newConfig);
+            } else {
                 const updatedConfig = { ...kpiConfig };
                 updatedConfig[selectedKpi] = { ...updatedConfig[selectedKpi], thresholds: thresholds };
                 await saveKPIConfig(updatedConfig);
@@ -307,6 +423,7 @@ const Thresholds = () => {
                 setMessage({ type: 'success', text: `Saved thresholds for ${selectedKpi}` });
             }
         } catch (e) {
+            console.error(e);
             setMessage({ type: 'error', text: 'Failed to save thresholds.' });
         }
     };
@@ -457,7 +574,7 @@ const Thresholds = () => {
                                 </Select>
                                 {selectedGroup === "__ALL__" && !isDynamic && (
                                     <p className="text-xs text-muted-foreground font-medium mt-1">
-                                        ℹ️ Static KPI thresholds are already shared across all trade groups.
+
                                     </p>
                                 )}
                             </div>
@@ -467,9 +584,14 @@ const Thresholds = () => {
                                     <SelectTrigger className="h-11 font-bold bg-white">
                                         <SelectValue placeholder="Select KPI" />
                                     </SelectTrigger>
-                                    <SelectContent className="bg-white border-border shadow-lg rounded-xl">
-                                        {availableKpis.map(k => (
-                                            <SelectItem key={k} value={k} className="font-medium cursor-pointer">{k}</SelectItem>
+                                    <SelectContent className="bg-white border-border shadow-lg rounded-xl max-h-[900px] overflow-y-auto">
+                                        {Object.entries(groupedKpis).map(([category, kpis]) => (
+                                            <SelectGroup key={category}>
+                                                <SelectLabel className="text-muted-foreground font-black uppercase text-xs tracking-wider">{category}</SelectLabel>
+                                                {kpis.map(k => (
+                                                    <SelectItem key={k} value={k} className="font-medium cursor-pointer ml-2">{k}</SelectItem>
+                                                ))}
+                                            </SelectGroup>
                                         ))}
                                     </SelectContent>
                                 </Select>
@@ -514,7 +636,7 @@ const Thresholds = () => {
                                         <thead className="bg-muted/30">
                                             <tr>
                                                 <th className="p-4 text-xs font-bold text-muted-foreground uppercase tracking-wider">Score Level</th>
-                                                {selectedTrade === selectedGroup && selectedGroup !== "__ALL__" ? (
+                                                {selectedTrade === selectedGroup && selectedGroup !== "__ALL__" && ["Average Site Value (£)", "SA Attended"].includes(selectedKpi) ? (
                                                     // Grid Layout Headers
                                                     <>
                                                         <th className="p-4 text-xs font-bold text-brand-blue uppercase tracking-wider border-l border-black/5 bg-brand-blue/5">All ({selectedGroup})</th>
@@ -525,58 +647,91 @@ const Thresholds = () => {
                                                 ) : (
                                                     <th className="p-4 text-xs font-bold text-muted-foreground uppercase tracking-wider">Threshold Value</th>
                                                 )}
+                                                <th className="p-4 w-20"></th>
                                             </tr>
                                         </thead>
                                         <tbody>
-                                            {(currentKpiConfig.dynamic.scores || []).map((score, idx) => {
-                                                const scoreColorClass = score >= 80 ? 'text-support-green' : score >= 60 ? 'text-support-orange' : 'text-support-red';
+                                            {dynamicScores.map((score, idx) => {
+                                                const scoreNum = parseFloat(score) || 0;
+                                                const scoreColorClass = scoreNum >= 70 ? 'text-support-green' : scoreNum >= 50 ? 'text-support-orange' : 'text-support-red';
 
                                                 return (
                                                     <tr key={idx} className="border-b border-black/5 last:border-0 hover:bg-muted/5 transition-colors">
                                                         <td className="p-4">
-                                                            <span className={`text-xl font-black ${scoreColorClass}`}>{score}%</span>
+                                                            <div className="flex items-center gap-0">
+                                                                <Input
+                                                                    type="number"
+                                                                    value={score}
+                                                                    onChange={(e) => {
+                                                                        const newScores = [...dynamicScores];
+                                                                        newScores[idx] = parseFloat(e.target.value) || 0;
+                                                                        setDynamicScores(newScores);
+                                                                    }}
+                                                                    className={`w-[70px] px-1 text-xl font-black ${scoreColorClass} bg-transparent border-none shadow-none focus-visible:ring-1 text-right`}
+                                                                />
+                                                                <span className={`text-xl font-black ${scoreColorClass}`}>%</span>
+                                                            </div>
                                                         </td>
 
-                                                        {selectedTrade === selectedGroup && selectedGroup !== "__ALL__" ? (
+                                                        {selectedTrade === selectedGroup && selectedGroup !== "__ALL__" && ["Average Site Value (£)", "SA Attended"].includes(selectedKpi) ? (
                                                             // Grid Layout Cells
                                                             <>
                                                                 <td className="p-4 border-l border-black/5 bg-brand-blue/5">
-                                                                    <Input
-                                                                        type="number"
-                                                                        min={0}
-                                                                        step="any"
-                                                                        value={gridThresholds["All"]?.[idx] !== undefined ? gridThresholds["All"][idx] : ''}
-                                                                        onChange={(e) => handleGridChange("All", idx, e.target.value)}
-                                                                        className="w-[120px] font-black bg-white border-2 border-brand-blue/20 focus-visible:ring-brand-blue"
-                                                                    />
-                                                                </td>
-                                                                {Object.keys(tradeSubgroups[selectedGroup] || {}).map(t => (
-                                                                    <td key={t} className="p-4 border-l border-black/5">
+                                                                    <div className="flex items-center gap-2">
+                                                                        <span className="text-muted-foreground font-bold">{currentKpiConfig?.direction === 'lower_is_better' ? '≤' : '≥'}</span>
                                                                         <Input
                                                                             type="number"
                                                                             min={0}
                                                                             step="any"
-                                                                            value={gridThresholds[t]?.[idx] !== undefined ? gridThresholds[t][idx] : ''}
-                                                                            onChange={(e) => handleGridChange(t, idx, e.target.value)}
-                                                                            className="w-[120px] font-bold bg-white"
+                                                                            value={gridThresholds["All"]?.[idx] !== undefined ? gridThresholds["All"][idx] : ''}
+                                                                            onChange={(e) => handleGridChange("All", idx, e.target.value)}
+                                                                            className="w-[120px] font-black bg-white border-2 border-brand-blue/20 focus-visible:ring-brand-blue"
                                                                         />
+                                                                    </div>
+                                                                </td>
+                                                                {Object.keys(tradeSubgroups[selectedGroup] || {}).map(t => (
+                                                                    <td key={t} className="p-4 border-l border-black/5">
+                                                                        <div className="flex items-center gap-2">
+                                                                            <span className="text-muted-foreground font-bold">{currentKpiConfig?.direction === 'lower_is_better' ? '≤' : '≥'}</span>
+                                                                            <Input
+                                                                                type="number"
+                                                                                min={0}
+                                                                                step="any"
+                                                                                value={gridThresholds[t]?.[idx] !== undefined ? gridThresholds[t][idx] : ''}
+                                                                                onChange={(e) => handleGridChange(t, idx, e.target.value)}
+                                                                                className="w-[120px] font-bold bg-white"
+                                                                            />
+                                                                        </div>
                                                                     </td>
                                                                 ))}
                                                             </>
                                                         ) : (
                                                             <td className="p-4">
-                                                                <Input
-                                                                    type="number"
-                                                                    className="w-[150px] font-bold bg-white"
-                                                                    value={thresholds[idx] !== undefined ? thresholds[idx] : 0}
-                                                                    onChange={(e) => {
-                                                                        const newThresholds = [...thresholds];
-                                                                        newThresholds[idx] = parseFloat(e.target.value);
-                                                                        setThresholds(newThresholds);
-                                                                    }}
-                                                                />
+                                                                <div className="flex items-center gap-2">
+                                                                    <span className="text-muted-foreground font-bold">{currentKpiConfig?.direction === 'lower_is_better' ? '≤' : '≥'}</span>
+                                                                    <Input
+                                                                        type="number"
+                                                                        className="w-[150px] font-bold bg-white"
+                                                                        value={thresholds[idx] !== undefined ? thresholds[idx] : 0}
+                                                                        onChange={(e) => {
+                                                                            const newThresholds = [...thresholds];
+                                                                            newThresholds[idx] = parseFloat(e.target.value);
+                                                                            setThresholds(newThresholds);
+                                                                        }}
+                                                                    />
+                                                                </div>
                                                             </td>
                                                         )}
+                                                        <td className="p-4 text-right">
+                                                            <div className="flex gap-1 justify-end opacity-40 hover:opacity-100 transition-opacity">
+                                                                <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => handleAddDynamicRow(idx)}>
+                                                                    <Plus className="h-4 w-4 text-muted-foreground hover:text-foreground" />
+                                                                </Button>
+                                                                <Button size="icon" variant="ghost" className="h-7 w-7 hover:bg-red-50" onClick={() => handleRemoveDynamicRow(idx)}>
+                                                                    <Trash2 className="h-4 w-4 text-red-400 hover:text-red-600" />
+                                                                </Button>
+                                                            </div>
+                                                        </td>
                                                     </tr>
                                                 );
                                             })}
@@ -610,12 +765,13 @@ const Thresholds = () => {
                                                     {currentKpiConfig?.direction === 'lower_is_better' ? 'Max Value' : 'Min Value'}
                                                 </th>
                                                 <th className="p-4 text-xs font-bold text-muted-foreground uppercase tracking-wider">Score Awarded</th>
+                                                <th className="p-4 w-20"></th>
                                             </tr>
                                         </thead>
                                         <tbody>
                                             {thresholds.map((t, idx) => {
-                                                const isHighScore = t.score >= 80;
-                                                const isMedScore = t.score >= 60;
+                                                const isHighScore = t.score >= 70;
+                                                const isMedScore = t.score >= 50;
                                                 const badgeBg = isHighScore ? 'bg-green-100' : (isMedScore ? 'bg-amber-100' : 'bg-red-100');
                                                 const badgeText = isHighScore ? 'bg-green-700' : (isMedScore ? 'bg-amber-700' : 'bg-red-700');
 
@@ -623,7 +779,7 @@ const Thresholds = () => {
                                                     <tr key={idx} className="border-b border-black/5 last:border-0 hover:bg-muted/5 transition-colors bg-white">
                                                         <td className="p-4">
                                                             <div className="flex items-center gap-2">
-                                                                <span className="text-muted-foreground font-bold">≥</span>
+                                                                <span className="text-muted-foreground font-bold">{currentKpiConfig?.direction === 'lower_is_better' ? '≤' : '≥'}</span>
                                                                 <Input
                                                                     type="number"
                                                                     className="w-[120px] font-bold bg-white"
@@ -646,6 +802,16 @@ const Thresholds = () => {
                                                                         style={{ width: `${Math.min(t.score, 100)}%` }}
                                                                     />
                                                                 </div>
+                                                            </div>
+                                                        </td>
+                                                        <td className="p-4 text-right">
+                                                            <div className="flex gap-1 justify-end opacity-40 hover:opacity-100 transition-opacity">
+                                                                <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => handleAddStaticRow(idx)}>
+                                                                    <Plus className="h-4 w-4 text-muted-foreground hover:text-foreground" />
+                                                                </Button>
+                                                                <Button size="icon" variant="ghost" className="h-7 w-7 hover:bg-red-50" onClick={() => handleRemoveStaticRow(idx)}>
+                                                                    <Trash2 className="h-4 w-4 text-red-400 hover:text-red-600" />
+                                                                </Button>
                                                             </div>
                                                         </td>
                                                     </tr>

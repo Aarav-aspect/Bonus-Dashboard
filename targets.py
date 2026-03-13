@@ -244,7 +244,7 @@ CATEGORY_KPIS = {
     ],
     "Vehicular": [
         "Average Driving Score",
-        "Drivers with <7 %",
+        "Drivers with <7",
         "VCR Update %",
     ],
     "Productivity": [

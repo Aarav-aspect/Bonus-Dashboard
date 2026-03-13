@@ -9,7 +9,6 @@ from datetime import datetime
 PRODUCTIVITY_KPIS = [
     "Ops Count %",
     "Sales Target Achievement %",
-    "Monthly Working Time (hrs)",
     "Callback Jobs %",
     "SA Attended",
     "Average Site Value (£)",
@@ -49,7 +48,6 @@ def _impact_text(kpi: str) -> str:
     return {
         "Ops Count %": "Lower staffing coverage can reduce capacity and increase delays.",
         "Sales Target Achievement %": "Missing the sales target reduces revenue and bonus outcomes.",
-        "Monthly Working Time (hrs)": "Lower productive time can reduce throughput and revenue.",
         "Callback Jobs %": "More callbacks usually means rework and wasted capacity.",
         "SA Attended": "Fewer attended appointments can slow delivery and reduce job completion.",
         "Average Site Value (£)": "Lower site value can reduce revenue per visit.",
@@ -62,7 +60,6 @@ def _action_text(kpi: str) -> Dict[str, str]:
     return {
         "Ops Count %": {"level": "HIGH", "text": "Improve coverage: review rota gaps, use flexible resourcing, and reduce avoidable downtime."},
         "Sales Target Achievement %": {"level": "HIGH", "text": "Focus on revenue drivers: improve quote conversion, raise average job value, and reduce cancellations."},
-        "Monthly Working Time (hrs)": {"level": "MEDIUM", "text": "Protect productive time: reduce admin load, tighten scheduling, and cut avoidable travel/waiting."},
         "Callback Jobs %": {"level": "HIGH", "text": "Reduce callbacks: fix-first-time coaching, better diagnostics, and quality checks on common failure types."},
         "SA Attended": {"level": "MEDIUM", "text": "Increase attended appointments: confirm bookings, reduce no-access, and improve routing."},
         "Average Site Value (£)": {"level": "MEDIUM", "text": "Raise site value: improve scope capture, offer options, and upsell where appropriate."},

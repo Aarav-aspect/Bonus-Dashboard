@@ -16,6 +16,7 @@ from simple_salesforce.login import SalesforceLogin
 
 import queries
 import kpi_details
+from mapping import get_region_for_trade, TRADE_GROUP_PHASE
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -66,7 +67,6 @@ TRADE_GROUPS: Dict[str, List[str]] = {
     "HVac & Electrical": [
         "Electrical", "Heating & Hot Water (Domestic)", "Air Con, Ventilation & Refrigeration",
         "Heating & Hot Water (Commercial)", "Electrical Renewable", "Gas", "HVAC",
-        "Utilities", 
     ],
     "Building Fabric": [
         "Decorating", "Roofing/LeakDetection", "Windows & Doors", "Roofing",
@@ -74,13 +74,13 @@ TRADE_GROUPS: Dict[str, List[str]] = {
         "Plastering", "Project Management Refurbishment", "Tiling", "Fencing",
         "Brickwork & Paving", "Locksmithing", "Partition Walls & Ceilings", "Access",
         "Glazing", "Project Management Decoration", "General Refurbishment",
-        "Wallpapering", "Bathroom Refurbishment", "Key", "PM", "Multi",
+        "Wallpapering", "Bathroom Refurbishment", "Key", "PM", "Multi", "General Builders", "Decoration"
     ],
     "Environmental Services": [
         "Gardening", "Pest Control", "Rubbish Removal", "Pest Proofing",
-        "Sanitisation & specialist cleaning",
+        "Sanitisation & specialist cleaning", "Waste Clearance",
     ],
-    "Fire Safety": ["Fire Safety", "Fire Safety Consultation", "Vent Hygiene and Safety"],
+    "Fire Safety": ["Fire Safety", "Fire Safety Consultation", "Vent Hygiene and Safety", "Vent Hygiene"],
     "Leak, Damp & Restoration": [
         "Leak Detection", "Leak Detection Restoration", "Leak Detection Restoration Drainage",
         "Leak Detection Restoration Plumbing", "Leak Detection Restoration Central Heating",
@@ -102,21 +102,20 @@ TRADE_GROUPS: Dict[str, List[str]] = {
 
 TRADE_SUBGROUPS = {
     "HVac & Electrical": {
-        "Air Conditioning": ["Air Con, Ventilation & Refrigeration"],
-        "Gas & Heating": ["Heating & Hot Water (Domestic)", "Heating & Hot Water (Commercial)", "Gas", "HVAC"],
+        "Gas & HVAC": ["Air Con, Ventilation & Refrigeration", "Heating & Hot Water (Domestic)", "Heating & Hot Water (Commercial)", "Gas", "HVAC"],
         "Electrical": ["Electrical", "Electrical Renewable"],
     },
     "Building Fabric": {
-        "Decoration": ["Decorating", "Plastering", "Tiling", "Wallpapering", "Multi"],
+        "Decoration": ["Decorating", "Plastering", "Tiling", "Wallpapering", "Decoration"],
         "Roofing": ["Roofing/LeakDetection", "Roofing", "Roof Window & Gutter Cleaning"],
-        "Multi Trades": ["Windows & Doors", "Handyman", "Carpentry", "Flooring Trade", "Fencing", "Brickwork & Paving", "Locksmithing", "Partition Walls & Ceilings", "Access", "Glazing"],
+        "Multi Trades": ["Windows & Doors", "Handyman", "Carpentry", "Flooring Trade", "Fencing", "Brickwork & Paving", "Locksmithing", "Partition Walls & Ceilings", "Access", "Glazing", "Multi", "General Builders"],
         "Project Management": ["Project Management Refurbishment", "General Refurbishment", "Bathroom Refurbishment", "Project Management Decoration"],
     },
     "Environmental Services": {
         "Gardening": ["Gardening"],
         "Pest Control": ["Pest Control", "Pest Proofing"],
         "Specialist Cleaning": ["Sanitisation & specialist cleaning"],
-        "Waste and Grease Management": ["Rubbish Removal"],
+        "Waste and Grease Management": ["Rubbish Removal", "Waste Clearance"],
     },
     "Fire Safety": {
         "Fire Safety": ["Fire Safety", "Fire Safety Consultation", "Vent Hygiene and Safety"],
@@ -239,7 +238,9 @@ def infer_month_key_and_year_from_iso(start_iso: str):
 
 
 # Secrets & Salesforce Client
+# ============================================================
 
+def get_secrets():
     """Read secrets from secrets.toml or environment variables."""
     secrets = {}
     try:
@@ -328,10 +329,55 @@ def map_trade_to_group(t: str) -> str:
 
 
 def resolve_trades_for_filters(trade_group: str, trade_filter: str) -> List[str]:
-    if trade_filter == "All":
+    if not trade_filter or trade_filter == "All":
         return get_trade_list(trade_group)
-    subgroup = TRADE_SUBGROUPS.get(trade_group, {})
-    return subgroup.get(trade_filter, get_trade_list(trade_group))
+    
+    subgroups = TRADE_SUBGROUPS.get(trade_group, {})
+    if trade_filter in subgroups:
+        return subgroups[trade_filter]
+    
+    return [trade_filter]
+
+def get_ops_baseline_count(trade_group: str, trades: List[str], region_filter: str) -> int:
+    """Returns the baseline headcount from ops_report.json for the given filters.
+    
+    ops_report.json is keyed by subgroup name (e.g. 'Multi Trades', 'Decoration'),
+    so we first map the given list of raw trade names to their subgroups, then sum.
+    If no subgroup is found (for trade groups without subgroups), we match directly.
+    """
+    try:
+        import json
+        path = os.path.join(os.path.dirname(__file__), "ops_report.json")
+        if not os.path.exists(path):
+            return 0
+        with open(path, "r") as f:
+            data = json.load(f)
+
+        # Build reverse map: (trade_group, trade_name) -> subgroup_name
+        subgroup_names_to_match = set()
+        subgroups = TRADE_SUBGROUPS.get(trade_group, {})
+        if subgroups:
+            for subgroup_name, subgroup_trades in subgroups.items():
+                if any(t in trades for t in subgroup_trades):
+                    subgroup_names_to_match.add(subgroup_name)
+        else:
+            # No subgroups defined — match directly on trade names
+            subgroup_names_to_match = set(trades)
+
+        filtered = [
+            item for item in data
+            if item.get("Trade Group") == trade_group
+            and item.get("Trade") in subgroup_names_to_match
+        ]
+
+        # Filter by region
+        if region_filter != "All":
+            filtered = [item for item in filtered if item.get("Region") == region_filter]
+
+        return sum(item.get("Count", 0) for item in filtered)
+    except Exception as e:
+        logger.warning(f"Error reading ops_baseline: {e}")
+        return 0
 
 
 # Webfleet API
@@ -461,11 +507,21 @@ def fetch_service_resources() -> pd.DataFrame:
     df["Email"] = df["Email"].astype(str).str.lower()
     df["Trade Group"] = df["Trade_Lookup__c"].apply(map_trade_to_group)
     df.rename(columns={"Name": "Engineer Name"}, inplace=True)
+    
+    # Postcode Fallback
+    df["Effective_PostalCode__c"] = df["Residential_PostalCode__c"].fillna(df.get("Postcode_for_schedule_STM__c"))
+    
+    # Exclude specific names requested by user
+    excluded_names = {"Project Management", "Electrical FOC Cover"}
+    df = df[~df["Engineer Name"].isin(excluded_names)].copy()
+    
     return df
 
 
 @lru_cache(maxsize=128)
-def fetch_ops_count(trades: Tuple[str]) -> int:
+def fetch_ops_count(trades: Tuple[str], region_filter: str = "All", trade_group_selected: str = None) -> int:
+    """Count active engineers matching the given trades/region using the same
+    data source as the ops-list drilldown, so the two always agree."""
     if not trades:
         return 0
     excluded = {"Key", "Utilities", "PM", "Test Ops"}
@@ -473,13 +529,25 @@ def fetch_ops_count(trades: Tuple[str]) -> int:
     if not filtered_trades:
         return 0
 
-    trades_str = ",".join([f"'{t}'" for t in filtered_trades])
-    q = queries.get_ops_count_query(trades_str)
     try:
-        res = sf_client().query(q)
-        records = res.get("records", [])
-        if records:
-            return records[0].get("cnt", 0)
+        df = fetch_service_resources()
+        if df.empty:
+            return 0
+
+        # Filter by trade
+        df = df[df["Trade_Lookup__c"].isin(filtered_trades)]
+
+        # Filter by region using the same Effective_PostalCode__c logic
+        if region_filter != "All" and trade_group_selected:
+            df = df[
+                df["Effective_PostalCode__c"].apply(
+                    lambda pc: get_region_for_trade(str(pc) if pc else "", trade_group_selected) == region_filter
+                )
+            ]
+
+        return len(df)
+    except Exception as e:
+        logger.warning(f"⚠️ Ops count fallback: {e}")
         return 0
     except Exception:
         return 0
@@ -499,25 +567,28 @@ def fetch_total_ops_count() -> int:
 
 
 @lru_cache(maxsize=128)
-def fetch_cases_count(trades: Tuple[str], start_iso: str, end_iso: str) -> int:
+def fetch_cases_data(trades: Tuple[str], start_iso: str, end_iso: str) -> pd.DataFrame:
     if not trades:
-        return 0
+        return pd.DataFrame()
     trades_str = ",".join([f"'{t}'" for t in trades])
-    q = queries.get_cases_count_query(trades_str, start_iso, end_iso)
+    q = queries.get_cases_data_query(trades_str, start_iso, end_iso)
     try:
-        res = sf_client().query(q)
+        res = sf_client().query_all(q)
         records = res.get("records", [])
         if records:
-            return records[0].get("cnt", 0)
-        return 0
+            df = pd.DataFrame(records)
+            if "attributes" in df.columns:
+                df = df.drop(columns=["attributes"])
+            return df
+        return pd.DataFrame()
     except Exception as e:
         logger.warning(f"⚠️ Case query error: {e}")
-        return 0
+        return pd.DataFrame()
 
 
 @lru_cache(maxsize=128)
 def fetch_engineer_satisfaction(
-    trades: Tuple[str], start_iso: str, end_iso: str
+    trades: Tuple[str], start_iso: str, end_iso: str, region_filter: str = "All", trade_group_selected: str = None
 ) -> Tuple[Optional[float], int]:
     if not trades:
         return None, 0
@@ -528,11 +599,32 @@ def fetch_engineer_satisfaction(
         records = res.get("records", [])
         if not records:
             return None, 0
-        scores = [
-            r.get("Total_Score__c")
-            for r in records
-            if r.get("Total_Score__c") is not None
-        ]
+        
+        df_surveys = pd.DataFrame(records)
+        if "attributes" in df_surveys.columns:
+            df_surveys = df_surveys.drop(columns=["attributes"])
+            
+        # If we need regional filtering, join with ServiceResource to get postcodes
+        if region_filter != "All" and trade_group_selected:
+            df_engineers = fetch_service_resources()
+            if not df_engineers.empty:
+                df_surveys = df_surveys.merge(
+                    df_engineers[["ServiceResourceId", "Effective_PostalCode__c"]],
+                    left_on="Service_Resource__c",
+                    right_on="ServiceResourceId",
+                    how="left"
+                )
+                # Filter by region based on engineer's effective postcode
+                df_surveys = df_surveys[
+                    df_surveys["Effective_PostalCode__c"].apply(
+                        lambda pc: get_region_for_trade(str(pc) if pc else "", trade_group_selected) == region_filter
+                    )
+                ]
+
+        if df_surveys.empty:
+            return None, 0
+
+        scores = df_surveys["Total_Score__c"].dropna().tolist()
         if not scores:
             return None, 0
         avg_score = sum(scores) / len(scores)
@@ -544,31 +636,77 @@ def fetch_engineer_satisfaction(
 
 @lru_cache(maxsize=128)
 def fetch_customer_invoice_sales(
-    trades: Tuple[str], start_iso: str, end_iso: str
+    trades: Tuple[str], start_iso: str, end_iso: str, trade_group: str = "All Groups", region_filter: str = "All"
 ) -> Tuple[float, float]:
     start_date = start_iso[:10]
     end_date = end_iso[:10]
     trade_list = ", ".join([f"'{t}'" for t in trades])
 
-    q_total = queries.get_total_invoice_sales_query(start_date, end_date)
-    q_filtered = queries.get_filtered_invoice_sales_query(trade_list, start_date, end_date)
+    # If asking for "All" or it's a phase 1 group, use the fast SOQL SUM aggregate.
+    phase = TRADE_GROUP_PHASE.get(trade_group, 1) if trade_group else 1
+    if region_filter == "All" or phase == 1:
+        q_total = queries.get_total_invoice_sales_query(start_date, end_date)
+        q_filtered = queries.get_filtered_invoice_sales_query(trade_list, start_date, end_date)
+    
+        total = 0.0
+        filtered = 0.0
+    
+        try:
+            res_total = sf_client().query(q_total)
+            total_val = res_total["records"][0].get("total_sales")
+            total = float(total_val) if total_val else 0.0
+    
+            res_filtered = sf_client().query(q_filtered)
+            filtered_val = res_filtered["records"][0].get("total_sales")
+            filtered = float(filtered_val) if filtered_val else 0.0
+    
+            return filtered, total
+    
+        except Exception as e:
+            logger.error(f"Invoice aggregate query error: {e}")
+            return 0.0, 0.0
 
-    total = 0.0
-    filtered = 0.0
-
+    # Otherwise (we need a specific region), fetch individual records and sum in Python.
+    # Note: 'total' here usually means total for the trade, but since we are filtering by region,
+    # the frontend expects 'filtered' to be the region total for the trades, and 'total' is usually
+    # the entire business total. However, the exact KPI calculation divides 'filtered' by the target.
+    # We will compute both filtered (the region total) and total (the full business total).
+    
+    q_all_trades_total = queries.get_total_invoice_sales_query(start_date, end_date)
+    q_records = queries.get_invoice_records_query(trade_list, start_date, end_date)
+    
+    filtered_sum = 0.0
+    total_business_sum = 0.0
+    
     try:
-        res_total = sf_client().query(q_total)
+        # Get overall business total (unfiltered by region for the KPI denominator context if needed)
+        res_total = sf_client().query(q_all_trades_total)
         total_val = res_total["records"][0].get("total_sales")
-        total = float(total_val) if total_val else 0.0
-
-        res_filtered = sf_client().query(q_filtered)
-        filtered_val = res_filtered["records"][0].get("total_sales")
-        filtered = float(filtered_val) if filtered_val else 0.0
-
-        return filtered, total
-
+        total_business_sum = float(total_val) if total_val else 0.0
+        
+        # Now fetch individual records for the selected trades to filter by region
+        res_records = sf_client().query_all(q_records)
+        records = res_records.get("records", [])
+        
+        for rec in records:
+            postcode = rec.get("Site_Postal_Code__c") or ""
+            charge = rec.get("Charge_Net__c")
+            if not charge or pd.isna(charge):
+                continue
+                
+            charge_val = float(charge)
+            
+            # Map postcode to region
+            rec_region = get_region_for_trade(postcode, trade_group)
+            
+            # If the record matches the requested region filter, add to sum
+            if rec_region == region_filter:
+                filtered_sum += charge_val
+                
+        return filtered_sum, total_business_sum
+        
     except Exception as e:
-        logger.error(f"Invoice query error: {e}")
+        logger.error(f"Invoice records query error: {e}")
         return 0.0, 0.0
 
 
@@ -745,23 +883,18 @@ WEBFLEET_EMAIL_MAP = {
     "stingray2303@yahoo.com":           "matthew.boyes@aspect.co.uk",
     "tjay751@icloud.com":               "robbie.wray@aspect.co.uk",
     "emanuelshehi16@gmail.com":         "emanuel.shehi@aspect.co.uk",
-    # deniz.okcay SF email is correct — old "typo fix" was wrong direction, removing it
-    # "deniz.okcay@aspect.co.uk":       "deniz.ockay@aspect.co.uk",   # REMOVED - broke matching
+ 
     "montel.o@hotmail.com":             "montel.brown@aspect.co.uk",
-    # SF email stored with typo 'bradey' — keep as-is so it matches the SF record
-    # "shane.bradey@aspect.co.uk":      "shane.brady@aspect.co.uk",   # REMOVED - SF has 'bradey'
+ 
     "relliot0722@gmail.com":            "robert.elliott@aspect.co.uk",
-    # daniel.linkson uses his aspect.co.uk email on Webfleet — remove old placeholder
-    # "daniel.linkson@aspect.co.uk":    "amandeep.aspect.staging@gmail.com",  # REMOVED
+   
     "charlie.mitchel@aspect.co.uk":     "charlie.mitchell@aspect.co.uk",  # typo fix
-    # tristan.upton uses his aspect.co.uk email on Webfleet — remove old placeholder
-    # "tristan.upton@aspect.co.uk":     "amandeep.singh@aspect.co.uk",  # REMOVED
+ 
     "ali.totali@aspect.co.uk":          "ali.tolali@aspect.co.uk",    # typo fix
-    # SF email for Houareau IS office@bugthugsuk.com — identity (no remap needed)
-    # "office@bugthugsuk.com":          "mike.houareau@aspect.co.uk",  # REMOVED - wrong target
+ 
+     "office@bugthugsuk.com":          "mike.houareau@aspect.co.uk", 
     "ahmed.belafkih@aspet.co.uk":       "ahmed.belafkih@aspect.co.uk",  # typo fix
-    # bradley.wells uses his aspect.co.uk email on Webfleet — remove old placeholder
-    # "bradley.wells@aspect.co.uk":     "amandeep.singh@aspect.co.uk",  # REMOVED
+  
     "lukejcashin@gmail.com":            "luke.cashin@aspect.co.uk",
     "lukasz.zarebaasp@aspect.co.uk":    "amandeep.singh@aspect.co.uk",
     "aspect70@aspect.co.uk":            "patrick.read@aspect.co.uk",
@@ -872,7 +1005,7 @@ def get_merged_vehicular_data() -> pd.DataFrame:
         df_engineers["Email"].astype(str).str.lower().str.strip()
     )
     df_merged = df_merged.merge(
-        df_engineers[["Email_Lower", "Trade Group", "Trade_Lookup__c", "Engineer Name"]],
+        df_engineers[["Email_Lower", "Trade Group", "Trade_Lookup__c", "Engineer Name", "Effective_PostalCode__c", "ServiceResourceId"]],
         on="Email_Lower",
         how="inner",
     )
@@ -883,7 +1016,7 @@ def get_merged_vehicular_data() -> pd.DataFrame:
     return df_merged
 
 
-def calculate_vehicular_kpi(df_veh: pd.DataFrame, trade_group: str) -> dict:
+def calculate_vehicular_kpi(df_veh: pd.DataFrame, trade_group: str, trades: List[str] = None, region_filter: str = "All") -> dict:
     if df_veh.empty:
         return {
             "avg_driving_score": None,
@@ -891,13 +1024,33 @@ def calculate_vehicular_kpi(df_veh: pd.DataFrame, trade_group: str) -> dict:
             "drivers_below_7_pct": None,
         }
 
-    df_trade = df_veh[df_veh["Trade Group"] == trade_group]
-    if df_trade.empty:
+    df_filtered = df_veh.copy()
+    
+    # Apply Trade Filter
+    if trades:
+        df_filtered = df_filtered[df_filtered["Trade_Lookup__c"].isin(trades)]
+        # Fallback if no specific trades found
+        if df_filtered.empty:
+            df_filtered = df_veh[df_veh["Trade Group"] == trade_group]
+    else:
+        df_filtered = df_filtered[df_filtered["Trade Group"] == trade_group]
+
+    # Apply Region Filter
+    if region_filter != "All":
+        df_filtered = df_filtered[
+            df_filtered["Effective_PostalCode__c"].apply(
+                lambda pc: get_region_for_trade(pc, trade_group) == region_filter
+            )
+        ]
+        
+    if df_filtered.empty:
         return {
             "avg_driving_score": None,
             "driver_count": 0,
             "drivers_below_7_pct": None,
         }
+
+    df_trade = df_filtered # for compatibility with existing code below
 
     score_col = (
         "optidrive_indicator"
@@ -941,6 +1094,7 @@ def compute_kpis(
     end_iso: str,
     scoring_key: str = None,
     bonus_trade: str = None,
+    region_filter: str = "All",
 ) -> dict:
     """
     High-level KPI computation:
@@ -991,21 +1145,21 @@ def compute_kpis(
     )
 
     # Non-DF extra calls
-    ops_count = fetch_ops_count(trades_tuple)
+    ops_count = fetch_ops_count(trades_tuple, region_filter, trade_group_selected)
     total_ops_count = fetch_total_ops_count()
     engineer_satisfaction, engineer_survey_count = fetch_engineer_satisfaction(
-        trades_tuple, start_iso, end_iso
+        trades_tuple, start_iso, end_iso, region_filter=region_filter, trade_group_selected=trade_group_selected
     )
 
     # Cases from PREVIOUS month (dates already calculated above)
-    cases_count = fetch_cases_count(
+    df_cases_all = fetch_cases_data(
         trades_tuple,
         cases_start_iso,
         cases_end_iso,
     )
 
     invoice_sales, total_invoice_sales = fetch_customer_invoice_sales(
-        trades_tuple, start_iso, end_iso
+        trades_tuple, start_iso, end_iso, trade_group=trade_group_selected, region_filter=region_filter
     )
 
     df_history = stage1["history"]
@@ -1072,6 +1226,19 @@ def compute_kpis(
         df_sa_excl_today = df_sa_month_all[
             df_sa_month_all["ActualStartTime"].dt.normalize() < today_date
         ]
+        
+        # Region Filtering for SA month (affects Site Value and Unclosed SA %)
+        if region_filter != "All" and "PostalCode" in df_sa_month_all.columns:
+            df_sa_month_all = df_sa_month_all[
+                df_sa_month_all["PostalCode"].apply(
+                    lambda pc: get_region_for_trade(pc, trade_group_selected) == region_filter
+                )
+            ]
+            df_sa_excl_today = df_sa_excl_today[
+                df_sa_excl_today["PostalCode"].apply(
+                    lambda pc: get_region_for_trade(pc, trade_group_selected) == region_filter
+                )
+            ]
         unclosed_sa_total = len(df_sa_excl_today)
         unclosed_sa_count = df_sa_excl_today[
             ~df_sa_excl_today["Status"].isin(["Visit Complete", "Cancelled"])
@@ -1090,18 +1257,38 @@ def compute_kpis(
                 lambda x: x.get("Type__c") if isinstance(x, dict) else None
             )
         
+        # Region Filtering for all attended activities
+        if region_filter != "All" and "PostalCode" in df_sa_activity.columns:
+            df_sa_activity = df_sa_activity[
+                df_sa_activity["PostalCode"].apply(
+                    lambda pc: get_region_for_trade(pc, trade_group_selected) == region_filter
+                )
+            ]
+
         # All attended jobs (denominator for Callbacks and TQR)
         attended_job_ids_month = set(
             df_sa_activity[df_sa_activity["Status"] == "Visit Complete"]["Job__c"].astype(str).unique()
         )
         
-        # Reactive attended jobs (denominator for 6+ Hours)
+        # Region Filtering for Reactive Leads Baseline
+        df_reactive_attended = df_sa_activity[
+            (df_sa_activity["Status"] == "Visit Complete") &
+            (df_sa_activity["Job__r.Type__c"] == "Reactive")
+        ]
+
+        # Reactive attended jobs (denominator for 6+ Hours and Estimate Production)
         attended_reactive_job_ids = set(
-            df_sa_activity[
-                (df_sa_activity["Status"] == "Visit Complete") &
-                (df_sa_activity["Job__r.Type__c"] == "Reactive")
-            ]["Job__c"].astype(str).unique()
+            df_reactive_attended["Job__c"].astype(str).unique()
         )
+
+    # Filter Previous Month SA Activity (for Satisfaction) by Region
+    df_sa_activity_prev = stage1.get("sa_activity_prev", pd.DataFrame())
+    if not df_sa_activity_prev.empty and region_filter != "All" and "PostalCode" in df_sa_activity_prev.columns:
+        df_sa_activity_prev = df_sa_activity_prev[
+            df_sa_activity_prev["PostalCode"].apply(
+                lambda pc: get_region_for_trade(pc, trade_group_selected) == region_filter
+            )
+        ]
 
     # Combine closed job IDs and attended job IDs for detail fetch
     job_ids_to_fetch = set(job_ids_closed).union(attended_job_ids_month)
@@ -1150,18 +1337,32 @@ def compute_kpis(
         df_sa["ArrivalWindowStartTime"] = pd.to_datetime(
             df_sa["ArrivalWindowStartTime"], errors="coerce"
         )
+        df_sa["ArrivalWindowEndTime"] = pd.to_datetime(
+            df_sa["ArrivalWindowEndTime"], errors="coerce"
+        )
 
     # Reactive Leads baseline: use unique reactive jobs that had an attended visit this month
     reactive_leads_count = len(attended_reactive_job_ids) if attended_reactive_job_ids else 0
 
-    # Numerator for Estimate Production: All Fixed Price Work Orders raised by engineers this month
+    # Numerator: Converted jobs created this month that were raised from those specific attended FOC jobs
+    # THAT belong to the filtered Reactive Leads baseline.
     estimate_production_count = 0
     df_fp_wo_all = pd.DataFrame()
     if not df_wo_month.empty:
+        # Filter 1: Fixed Price and Engineer Partner Community
         df_fp_wo_all = df_wo_month[
             (df_wo_month["Record_Type_Name__c"].astype(str).str.contains("Fixed Price", case=False, na=False)) &
             (df_wo_month["Created_by_Profile_Name__c"] == "Engineer Partner Community")
         ]
+        
+        # Filter 2: Region filtering (independent of reactive leads denominator)
+        if region_filter != "All" and "PostalCode" in df_fp_wo_all.columns:
+            df_fp_wo_all = df_fp_wo_all[
+                df_fp_wo_all["PostalCode"].apply(
+                    lambda pc: get_region_for_trade(pc, trade_group_selected) == region_filter
+                )
+            ]
+
         estimate_production_count = len(df_fp_wo_all)
 
     estimate_production_pct = (
@@ -1190,10 +1391,12 @@ def compute_kpis(
     
     # Numerator: Converted jobs created this month that were raised from those specific attended FOC jobs
     # We only count jobs with status "Approved by Client" or "Closed"
-    raised_from_attended_foc = df_jobs_month[
-        (df_jobs_month["Raised_from_Job__c"].astype(str).isin(foc_attended_ids)) &
-        (df_jobs_month["Status__c"].isin(["Approved by Client", "Closed", "Ongoing"]))
-    ]
+    raised_from_attended_foc = pd.DataFrame()
+    if not df_jobs_month.empty and "Raised_from_Job__c" in df_jobs_month.columns:
+        raised_from_attended_foc = df_jobs_month[
+            (df_jobs_month["Raised_from_Job__c"].astype(str).isin(foc_attended_ids)) &
+            (df_jobs_month["Status__c"].isin(["Approved by Client", "Closed", "Ongoing"]))
+        ]
     
     # User asked to count ALL converted follow-on jobs (can exceed 100% if one visit raises multiple approved jobs)
     foc_conversion_rate = (
@@ -1251,10 +1454,10 @@ def compute_kpis(
     # Baseline for Callbacks and TQR: Unique jobs with Attended SAs (Visit Complete)
     job_ids_month = list(attended_job_ids_month)
 
-    df_sa_activity = stage1["sa_activity"]
     if not df_sa_activity.empty:
         df_sa_activity["ActualStartTime"] = pd.to_datetime(df_sa_activity["ActualStartTime"], errors="coerce")
         df_sa_activity["ArrivalWindowStartTime"] = pd.to_datetime(df_sa_activity["ArrivalWindowStartTime"], errors="coerce")
+        df_sa_activity["ArrivalWindowEndTime"] = pd.to_datetime(df_sa_activity["ArrivalWindowEndTime"], errors="coerce")
         df_sa_activity["Review_Star_Rating__c"] = pd.to_numeric(df_sa_activity["Review_Star_Rating__c"], errors="coerce")
 
     # ------------------------------------------------------------------
@@ -1262,7 +1465,6 @@ def compute_kpis(
     # ------------------------------------------------------------------
     # User requested Review Ratio to be based on LAST month's SA activity 
     # (specifically ActualStartTime in previous month).
-    df_sa_activity_prev = stage1.get("sa_activity_prev", pd.DataFrame())
     
     count_attended_prev = 0
     count_reviews_prev = 0
@@ -1318,13 +1520,13 @@ def compute_kpis(
         # Late Calculation
         # We need to ensure we don't have NaTs before comparison to avoid errors
         # (Though query filters on ActualStartTime, ArrivalWindow might be missing)
-        valid_times = df_sa_activity.dropna(subset=["ActualStartTime", "ArrivalWindowStartTime"]).copy()
+        valid_times = df_sa_activity.dropna(subset=["ActualStartTime", "ArrivalWindowEndTime"]).copy()
         
         valid_times["Late"] = (
-            (valid_times["ActualStartTime"] - valid_times["ArrivalWindowStartTime"])
+            (valid_times["ActualStartTime"] - valid_times["ArrivalWindowEndTime"])
             .dt.total_seconds()
             / 60
-            > 30
+            > 0
         )
         late_count = int(valid_times["Late"].sum())
         late_pct = (late_count / service_appts * 100) if service_appts else 0.0
@@ -1351,15 +1553,30 @@ def compute_kpis(
 
     if not df_vcr.empty and not df_engineers.empty:
         df_vcr = df_vcr.merge(
-            df_engineers[["ServiceResourceId", "Trade Group"]],
+            df_engineers[["ServiceResourceId", "Trade Group", "Trade_Lookup__c", "Residential_PostalCode__c"]],
             left_on="Current_Engineer_Assigned_to_Vehicle__c",
             right_on="ServiceResourceId",
             how="left",
         )
 
-        vcr_count = df_vcr[
-            df_vcr["Trade Group"] == trade_group_selected
-        ].shape[0]
+        if trades:
+
+            df_trade_vcr = df_vcr[df_vcr["Trade_Lookup__c"].isin(trades)]
+            # Fallback if no specific trades found
+            if df_trade_vcr.empty:
+                df_trade_vcr = df_vcr[df_vcr["Trade Group"] == trade_group_selected]
+        else:
+            df_trade_vcr = df_vcr[df_vcr["Trade Group"] == trade_group_selected]
+
+        # Apply Region Filter for VCR
+        if region_filter != "All":
+            df_trade_vcr = df_trade_vcr[
+                df_trade_vcr["Residential_PostalCode__c"].apply(
+                    lambda pc: get_region_for_trade(pc, trade_group_selected) == region_filter
+                )
+            ]
+
+        vcr_count = df_trade_vcr.shape[0]
 
     vcr_update_pct = None  # calculated after vehicular_kpi is available (uses driver_count)
 
@@ -1409,14 +1626,27 @@ def compute_kpis(
         comment = str(row.get("Customer Comment") or "").lower()
         return ("callback" in comment) or ("call back" in comment) or (cp == "call back")
     
-    # Filter detailed jobs to only those that were attended this month
+    # Baseline for Callbacks (Current Month)
     df_attended_month = df_jobs_detailed[df_jobs_detailed["Job ID"].isin(job_ids_month)]
     callback_jobs_count = int(df_attended_month.apply(detect_callback, axis=1).sum())
-    total_jobs_prev = fetch_jobs_created_and_closed_count(
-        trades_tuple,
-        cases_start_iso,
-        cases_end_iso,
-    )
+
+    # Case KPI Baseline: Unique Jobs from Service Appointments completed in previous month
+    attended_job_ids_prev = set()
+    if not df_sa_activity_prev.empty:
+        attended_job_ids_prev = set(
+            df_sa_activity_prev[df_sa_activity_prev["Status"] == "Visit Complete"]["Job__c"].astype(str).unique()
+        )
+    
+    total_jobs_prev = len(attended_job_ids_prev)
+    
+    # Numerator: Cases linked to those specific jobs
+    cases_count = 0
+    if not df_cases_all.empty and attended_job_ids_prev:
+        # Filter cases where Job__c is in the baseline set
+        df_cases_filtered = df_cases_all[
+            df_cases_all["Job__c"].astype(str).isin(attended_job_ids_prev)
+        ]
+        cases_count = len(df_cases_filtered)
 
     cases_pct = (
         (cases_count / total_jobs_prev) * 100
@@ -1453,12 +1683,14 @@ def compute_kpis(
     )
 
     # Vehicular KPI
-    vehicular_kpi = calculate_vehicular_kpi(df_vehicular, trade_group_selected)
+    vehicular_kpi = calculate_vehicular_kpi(
+        df_vehicular, trade_group_selected, trades, region_filter=region_filter
+    )
 
     # VCR % uses driver_count (Webfleet) as denominator so it aligns with Drivers with <7
     driver_count = vehicular_kpi.get("driver_count", 0)
     if driver_count > 0:
-        vcr_update_pct = (vcr_count / (driver_count * 4)) * 100
+        vcr_update_pct = (vcr_count / (driver_count * 2)) * 100
 
     # --------------------------------------------------------
     # 4. Flat KPI dict (numeric values, no strings)
@@ -1487,17 +1719,20 @@ def compute_kpis(
         "TQR (Not Satisfied) Ratio %": float(tqr_not_satisfied_ratio_pct) if tqr_not_satisfied_ratio_pct is not None else None,
         "TQR (Not Satisfied) Count": int(tqr_not_satisfied_count),
         "Reviews Count": int(count_reviews),
-        "Monthly Working Time (hrs)": 200.0,
         "Average Review Rating": float(avg_rating) if avg_rating is not None else None,
         "Review Ratio %": float(review_ratio) if review_ratio is not None else None,
         "Absence %": 10.0,
         "Top Performers %": 20.0,
         "Red Flags %": 20.0,
-        "Engineer Retention %": 80.0,
+        "Engineer Retention %": float(
+            (ops_count / get_ops_baseline_count(trade_group_selected, trades, region_filter) * 100)
+            if get_ops_baseline_count(trade_group_selected, trades, region_filter) > 0
+            else 0.0
+        ),
         "Ops Count %": float(ops_count_achievement),
         "Ops Count": int(ops_count),
         "Total Ops Count": int(total_ops_count),
-        "Cases %": float(cases_pct) if cases_pct is not None else None,
+        "Cases %": (float(cases_pct) if cases_pct is not None else None),
         "Cases Count": int(cases_count),
         "Engineer Satisfaction %": (
             float(engineer_satisfaction) if engineer_satisfaction is not None else None
@@ -1510,11 +1745,11 @@ def compute_kpis(
         "Invoice Sales": float(invoice_sales),
         "Total Invoice Sales": float(total_invoice_sales),
         "Average Driving Score": (
-            float(vehicular_kpi["avg_driving_score"])
+            round(float(vehicular_kpi["avg_driving_score"]), 1)
             if vehicular_kpi["avg_driving_score"] is not None
             else None
         ),
-        "Drivers with <7 %": (
+        "Drivers with <7": (
             float(vehicular_kpi["drivers_below_7_pct"])
             if vehicular_kpi["drivers_below_7_pct"] is not None
             else None
@@ -1549,13 +1784,12 @@ def compute_kpis(
         },
         "Vehicular": {
             "Average Driving Score": kpis.get(normalise_kpi_name("Average Driving Score")),
-            "Drivers with <7 %": kpis.get(normalise_kpi_name("Drivers with <7 %")),
+            "Drivers with <7": kpis.get(normalise_kpi_name("Drivers with <7")),
             "VCR Update %": kpis.get(normalise_kpi_name("VCR Update %")),
         },
         "Productivity": {
             "Ops Count %": kpis.get(normalise_kpi_name("Ops Count %")),
             "Sales Target Achievement %": kpis.get(normalise_kpi_name("Sales Target Achievement %")),
-            "Monthly Working Time (hrs)": kpis.get(normalise_kpi_name("Monthly Working Time (hrs)")),
             "Callback Jobs %": kpis.get(normalise_kpi_name("Callback Jobs %")),
             "SA Attended": kpis.get(normalise_kpi_name("SA Attended")),
             "Average Site Value (£)": kpis.get(normalise_kpi_name("Average Site Value (£)")),
@@ -1638,7 +1872,7 @@ def compute_kpis(
         "driver_count": vehicular_kpi.get("driver_count", 0),
         "drivers_below_7_count": int((vehicular_kpi.get("drivers_below_7_pct") or 0) / 100 * vehicular_kpi.get("driver_count", 0)) if vehicular_kpi.get("driver_count") else 0,
         "vcr_count": vcr_count,
-        "vcr_target": driver_count * 4 if driver_count else 0,
+        "vcr_target": driver_count * 2 if driver_count else 0,
 
         # Procedural Metrics
         "tqr_total_count": tqr_total_count,
@@ -1648,10 +1882,11 @@ def compute_kpis(
         "unclosed_sa_total": unclosed_sa_total,
         "jobs_6_plus_total": jobs_6_plus_total,
         "reactive_jobs_count": reactive_jobs_count,
+        "ops_baseline": get_ops_baseline_count(trade_group_selected, trades, region_filter),
     }
 
     kpis = kpi_details.enrich_kpis(kpis, raw_metrics)
-    
+
     # Also update the nested category dict to pick up the enriched objects
     for cat_name, cat_kpis in categories.items():
         for kpi_name in cat_kpis:
@@ -1675,3 +1910,106 @@ def compute_kpis(
         "live_labour": live_data["labour"],
         "live_materials": live_data["materials"],
     }
+
+
+# ============================================================
+# Google Sheets Integration
+# ============================================================
+import time as _time
+
+_GSHEET_CACHE: dict = {}
+_GSHEET_CACHE_TS: float = 0.0
+_GSHEET_CACHE_TTL: float = 300  # 5 minutes
+
+GSHEET_ID = "1ehYMcI0Plwup7I11WEnyaP674CSB6_lc8zrrdwa7Kjs"
+GSHEET_CREDS_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), "bonus-dashboard-9e3fb8d8d57d.json")
+GSHEET_WORKSHEET = "Dummy data"
+
+# Maps trade filter (subgroup) name → sheet column prefix
+TRADE_TO_SHEET_PREFIX = {
+    "Decoration": "Decoration",
+    "Gas & HVAC": "Gas and HVAC",
+    "Electrical": "Electrical",
+    "Roofing": "Roofing",
+    "Multi Trades": "Multi",
+    "Fire Safety": "Fire Safety",
+    "Vent Hygiene and Safety": "Vent Hygiene",
+}
+
+# Maps trade GROUP name → sheet column prefix (trade filter is ignored for these)
+TRADE_GROUP_TO_SHEET_PREFIX = {
+    "Plumbing & Drainage": "Drainage and Plumbing",
+    "Leak, Damp & Restoration": "Leak Detection",
+}
+
+
+def fetch_gsheet_all_data() -> dict:
+    """Fetch all columns from the Dummy data sheet. Cached for 5 minutes."""
+    global _GSHEET_CACHE, _GSHEET_CACHE_TS
+    now = _time.time()
+    if _GSHEET_CACHE and (now - _GSHEET_CACHE_TS) < _GSHEET_CACHE_TTL:
+        return _GSHEET_CACHE
+    try:
+        import gspread
+        from google.oauth2.service_account import Credentials as GCreds
+        creds = GCreds.from_service_account_file(
+            GSHEET_CREDS_FILE,
+            scopes=["https://www.googleapis.com/auth/spreadsheets.readonly"],
+        )
+        gc = gspread.authorize(creds)
+        sh = gc.open_by_key(GSHEET_ID)
+        ws = sh.worksheet(GSHEET_WORKSHEET)
+        rows = ws.get_all_values()
+        if not rows:
+            return {}
+        headers = rows[0]
+        result = {}
+        for col_idx, col_name in enumerate(headers):
+            if col_idx == 0:
+                continue
+            col_data = {}
+            for row in rows[1:]:
+                row_name = row[0]
+                val_str = row[col_idx] if col_idx < len(row) else ""
+                try:
+                    col_data[row_name] = float(val_str.replace(",", ""))
+                except (ValueError, AttributeError):
+                    col_data[row_name] = val_str
+            result[col_name] = col_data
+        _GSHEET_CACHE = result
+        _GSHEET_CACHE_TS = now
+        logger.info(f"✅ Google Sheet fetched: {list(result.keys())}")
+        return result
+    except Exception as e:
+        logger.error(f"❌ Google Sheet fetch error: {e}")
+        return _GSHEET_CACHE
+
+
+def get_gsheet_column_data(trade_filter: str, region: str, trade_group: str = "") -> dict:
+    """Return row data for a specific trade+region column.
+    Trade groups in TRADE_GROUP_TO_SHEET_PREFIX are looked up by group+region (trade_filter ignored).
+    All others use trade_filter+region. Sums matching columns if region='All'.
+    """
+    all_data = fetch_gsheet_all_data()
+    # Trade group takes priority if it has a direct sheet mapping.
+    # If the UI passes a group with "All" trade selected (e.g. Fire Safety),
+    # allow the group name itself to resolve through the trade-prefix map too.
+    if trade_group and trade_group in TRADE_GROUP_TO_SHEET_PREFIX:
+        prefix = TRADE_GROUP_TO_SHEET_PREFIX[trade_group]
+    elif trade_filter and trade_filter != "All":
+        prefix = TRADE_TO_SHEET_PREFIX.get(trade_filter, trade_filter)
+    elif trade_group and trade_group in TRADE_TO_SHEET_PREFIX:
+        prefix = TRADE_TO_SHEET_PREFIX[trade_group]
+    else:
+        prefix = TRADE_TO_SHEET_PREFIX.get(trade_filter, trade_filter or trade_group)
+    if region and region != "All":
+        col_name = f"{prefix} {region}"
+        return all_data.get(col_name, {})
+    # Sum across all regions for this trade prefix
+    result: dict = {}
+    for col_name, col_data in all_data.items():
+        if col_name.startswith(prefix + " "):
+            for row_name, val in col_data.items():
+                if isinstance(val, (int, float)):
+                    result[row_name] = result.get(row_name, 0) + val
+    return result

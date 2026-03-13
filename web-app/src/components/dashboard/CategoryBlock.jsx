@@ -10,6 +10,7 @@ import Reactive6PlusModal from '../drilldown/Reactive6PlusModal';
 import TqrNotSatisfiedModal from '../drilldown/TqrNotSatisfiedModal';
 import LateToSiteModal from '../drilldown/LateToSiteModal';
 import CasesModal from '../drilldown/CasesModal';
+import VcrDetailModal from '../drilldown/VcrDetailModal';
 import { Card } from "@/components/ui/card"
 import {
     Car,
@@ -42,7 +43,7 @@ function getSlabMultiplier(score) {
     return band ? band.multiplier : -0.60;
 }
 
-const CategoryBlock = ({ title, kpis, kpiScores, categoryScore, bonusPot = 0, basePot = 0, overallScore = 1, kpiConfig = null, activeTrade = null, tradeGroup = null, drilldownConfig = {}, selectedMonth = null }) => {
+const CategoryBlock = ({ title, kpis, kpiScores, categoryScore, bonusPot = 0, basePot = 0, overallScore = 1, kpiConfig = null, activeTrade = null, tradeGroup = null, drilldownConfig = {}, selectedMonth = null, selectedRegion = "All" }) => {
 
     // Resolve thresholds for a KPI — handles both static and dynamic (trade-based) configs.
     const resolveThresholds = (kpiName) => {
@@ -126,10 +127,10 @@ const CategoryBlock = ({ title, kpis, kpiScores, categoryScore, bonusPot = 0, ba
     // Color logic using Tailwind classes
     let scoreColorClass = "text-support-red";
     let progressBarClass = "bg-support-red";
-    if (categoryScore >= 80) {
+    if (categoryScore >= 70) {
         scoreColorClass = "text-support-green";
         progressBarClass = "bg-support-green";
-    } else if (categoryScore >= 60) {
+    } else if (categoryScore >= 50) {
         scoreColorClass = "text-support-orange";
         progressBarClass = "bg-support-orange";
     }
@@ -288,7 +289,7 @@ const CategoryBlock = ({ title, kpis, kpiScores, categoryScore, bonusPot = 0, ba
                                         <span className="text-4xl font-black">
                                             {selectedKpiDrilldown.name.includes('(£)') || selectedKpiDrilldown.name.includes('Value')
                                                 ? `£${selectedKpiDrilldown.value?.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 })}`
-                                                : selectedKpiDrilldown.name.includes('Rating')
+                                                : selectedKpiDrilldown.name.includes('Rating') || selectedKpiDrilldown.name === 'Average Driving Score'
                                                     ? selectedKpiDrilldown.value?.toFixed(1)
                                                     : selectedKpiDrilldown.name.includes('Attended')
                                                         ? (selectedKpiDrilldown.value || 0).toFixed(0)
@@ -377,7 +378,7 @@ const CategoryBlock = ({ title, kpis, kpiScores, categoryScore, bonusPot = 0, ba
                                                         </span>
                                                         <span className={`text-lg font-black whitespace-nowrap ${isCurrentTier ? "text-foreground" : "text-foreground"}`}>
                                                             {direction === "higher_is_better" ? "≥ " : "≤ "}
-                                                            {thresholdVal}
+                                                            {thresholdVal ?? 0}
                                                             {selectedKpiDrilldown.name.includes('%') ? '%' : ''}
                                                         </span>
                                                     </div>
@@ -399,24 +400,30 @@ const CategoryBlock = ({ title, kpis, kpiScores, categoryScore, bonusPot = 0, ba
                                             const cfg = drilldownConfig[selectedKpiDrilldown.name];
                                             let data;
                                             if (cfg.data_source === 'reviews') {
-                                                data = await fetchReviewDetails(tradeGroup, selectedMonth, activeTrade);
+                                                data = await fetchReviewDetails(tradeGroup, selectedMonth, activeTrade, selectedRegion);
                                             } else if (cfg.data_source === 'ops_list') {
-                                                data = await fetchOpsList(tradeGroup, activeTrade);
+                                                data = await fetchOpsList(tradeGroup, activeTrade, selectedRegion);
                                             } else if (cfg.data_source === 'unclosed_sas') {
-                                                data = await fetchUnclosedSAs(tradeGroup, selectedMonth, activeTrade);
+                                                data = await fetchUnclosedSAs(tradeGroup, selectedMonth, activeTrade, selectedRegion);
                                             } else if (cfg.data_source === 'callback_jobs') {
-                                                data = await fetchCallbackJobs(tradeGroup, selectedMonth, activeTrade);
+                                                data = await fetchCallbackJobs(tradeGroup, selectedMonth, activeTrade, selectedRegion);
                                             } else if (cfg.data_source === 'reactive_6plus') {
-                                                data = await fetchReactive6Plus(tradeGroup, selectedMonth, activeTrade);
+                                                data = await fetchReactive6Plus(tradeGroup, selectedMonth, activeTrade, selectedRegion);
                                             } else if (cfg.data_source === 'tqr_not_satisfied') {
-                                                data = await fetchTqrNotSatisfied(tradeGroup, selectedMonth, activeTrade);
+                                                data = await fetchTqrNotSatisfied(tradeGroup, selectedMonth, activeTrade, selectedRegion);
                                             } else if (cfg.data_source === 'late_to_site') {
-                                                data = await fetchLateToSite(tradeGroup, selectedMonth, activeTrade);
+                                                data = await fetchLateToSite(tradeGroup, selectedMonth, activeTrade, selectedRegion);
                                             } else if (cfg.data_source === 'cases') {
-                                                data = await fetchCases(tradeGroup, selectedMonth, activeTrade);
+                                                data = await fetchCases(tradeGroup, selectedMonth, activeTrade, selectedRegion);
+                                            } else if (cfg.data_source === 'vcr_update') {
+                                                // Used for VCR Update %
+                                                setDriversModalOpen(true);
+                                                // Set a fake data object to trigger the right modal
+                                                setDriversData({ _source: 'vcr_update' });
+                                                return; // VcrDetailModal handles its own fetching
                                             } else {
-                                                // Note: Driver Scores API might need an update later if it relies on trade_filter
-                                                data = await fetchDriverScores(tradeGroup);
+                                                // Added activeTrade here to pass the trade filter down to the API
+                                                data = await fetchDriverScores(tradeGroup, activeTrade, selectedRegion);
                                             }
                                             setDriversData({ ...data, _source: cfg.data_source });
                                             setDriversModalOpen(true);
@@ -494,6 +501,15 @@ const CategoryBlock = ({ title, kpis, kpiScores, categoryScore, bonusPot = 0, ba
                     onClose={() => setDriversModalOpen(false)}
                     data={driversData}
                     tradeGroup={tradeGroup}
+                />
+            ) : driversData?._source === 'vcr_update' ? (
+                <VcrDetailModal
+                    isOpen={driversModalOpen}
+                    onClose={() => setDriversModalOpen(false)}
+                    tradeGroup={tradeGroup}
+                    tradeFilter={activeTrade}
+                    regionFilter={selectedRegion}
+                    monthName={selectedMonth}
                 />
             ) : (
                 <DriversDetailModal
