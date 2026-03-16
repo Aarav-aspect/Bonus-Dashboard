@@ -833,43 +833,6 @@
         }
       ]
     },
-    "Absence %": {
-      "direction": "lower_is_better",
-      "thresholds": [
-        {
-          "max": 5,
-          "score": 100
-        },
-        {
-          "max": 7.5,
-          "score": 90
-        },
-        {
-          "max": 10,
-          "score": 80
-        },
-        {
-          "max": 12.5,
-          "score": 70
-        },
-        {
-          "max": 15,
-          "score": 60
-        },
-        {
-          "max": 17.5,
-          "score": 50
-        },
-        {
-          "max": 20,
-          "score": 40
-        },
-        {
-          "max": 100,
-          "score": 0
-        }
-      ]
-    },
     "Average Site Value (\u00a3)": {
       "direction": "higher_is_better",
       "dynamic": {

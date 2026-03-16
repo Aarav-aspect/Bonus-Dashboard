@@ -33,6 +33,7 @@ from backend import (
 
 import json
 from pathlib import Path
+from database import get_config, save_config, get_db_connection
 
 BONUS_POT_FILE = Path("bonuspot.json")
 THRESHOLD_FILE = Path("thresholds.json")
@@ -74,7 +75,7 @@ app.add_middleware(
 
 # Serve Frontend (Production)
 
-# We assume the frontend is built into 'web-app/dist'
+
 # This will be used in the Docker container
 dist_path = Path("web-app/dist")
 if dist_path.exists():
@@ -327,7 +328,16 @@ def get_drilldown_config():
 @app.get("/config/bonus-pots")
 def get_bonus_pots(request: Request):
     auth.require_user(request)
+    
+    # Try database first
+    try:
+        config = get_config("bonuspot")
+        if config:
+            return config
+    except Exception as e:
+        print(f"Error fetching bonus pots from DB: {e}")
 
+    # Fallback to file
     if BONUS_POT_FILE.exists():
         with open(BONUS_POT_FILE, "r") as f:
             return json.load(f)
@@ -337,6 +347,13 @@ def get_bonus_pots(request: Request):
 def save_bonus_pots(pots: Dict[str, Any], request: Request):
     auth.require_role(request, ["admin", "manager"])
 
+    # Update database
+    try:
+        save_config("bonuspot", pots)
+    except Exception as e:
+        print(f"Error saving bonus pots to DB: {e}")
+
+    # Still update file for now (dual-write phase)
     with open(BONUS_POT_FILE, "w") as f:
         json.dump(pots, f, indent=2)
     return {"status": "success"}
@@ -345,6 +362,15 @@ def save_bonus_pots(pots: Dict[str, Any], request: Request):
 def get_kpi_config(request: Request):
     auth.require_user(request)
 
+    # Try database first
+    try:
+        config = get_config("thresholds")
+        if config:
+            return config.get("kpis", {})
+    except Exception as e:
+        print(f"Error fetching thresholds from DB: {e}")
+
+    # Fallback to file
     if THRESHOLD_FILE.exists():
         with open(THRESHOLD_FILE, "r") as f:
             data = json.load(f)
@@ -355,8 +381,16 @@ def get_kpi_config(request: Request):
 def save_kpi_config(data: Dict[str, Any], request: Request):
     auth.require_role(request, ["admin", "manager"])
 
+    # Update database
+    try:
+        save_config("thresholds", {"kpis": data})
+    except Exception as e:
+        print(f"Error saving thresholds to DB: {e}")
+
+    # Still update file for now
     with open(THRESHOLD_FILE, "w") as f:
         json.dump({"kpis": data}, f, indent=2)
+    
     reload_kpi_config()
     return {"status": "success"}
 
@@ -370,45 +404,43 @@ class DynamicUpdate(BaseModel):
 def update_dynamic_threshold(kpi_name: str, trade_group: str, request: Request, payload: DynamicUpdate):
     auth.require_role(request, ["admin", "manager"])
 
-    """
-    Update thresholds for a specific trade group within a dynamic KPI.
-    """
-    if not THRESHOLD_FILE.exists():
-        raise HTTPException(status_code=404, detail="Thresholds file not found")
-
-    with open(THRESHOLD_FILE, "r") as f:
-        data = json.load(f)
+    # Load existing data (prefer DB)
+    data = None
+    try:
+        data = get_config("thresholds")
+    except Exception as e:
+        print(f"Error fetching thresholds from DB for dynamic update: {e}")
+    
+    if not data and THRESHOLD_FILE.exists():
+        with open(THRESHOLD_FILE, "r") as f:
+            data = json.load(f)
+    
+    if not data:
+        raise HTTPException(status_code=404, detail="Thresholds configuration not found")
 
     kpis = data.get("kpis", {})
-
     if kpi_name not in kpis:
         raise HTTPException(status_code=404, detail=f"KPI '{kpi_name}' not found")
 
     kpi_config = kpis[kpi_name]
-
     if "dynamic" not in kpi_config:
         raise HTTPException(status_code=400, detail=f"KPI '{kpi_name}' is not a dynamic KPI")
 
     dynamic_config = kpi_config["dynamic"]
-
     if dynamic_config.get("type") != "trade_based":
         raise HTTPException(status_code=400, detail=f"KPI '{kpi_name}' is not trade-based")
 
     scores = payload.scores if payload.scores is not None else dynamic_config.get("scores", [])
     thresholds = payload.thresholds
 
-    if len(thresholds) != len(scores):
-        # If scores were provided, update them. If not, zip will handle truncation/padding in scoring.
-        # But for data integrity, we should probably warn or just update the scores if specifically provided.
-        if payload.scores is not None:
-            dynamic_config["scores"] = scores
-        else:
-            # If scores not provided but length mismatch, we still allow it but it might be confusing.
-            # Best to just allow it for now to let the user save.
-            pass
-
     thresholds_by_trade = dynamic_config.setdefault("thresholds_by_trade", {})
     thresholds_by_trade[trade_group] = thresholds
+
+    # Save to both
+    try:
+        save_config("thresholds", data)
+    except Exception as e:
+        print(f"Error saving updated thresholds to DB: {e}")
 
     with open(THRESHOLD_FILE, "w") as f:
         json.dump(data, f, indent=2)
@@ -421,27 +453,29 @@ def update_dynamic_threshold(kpi_name: str, trade_group: str, request: Request, 
 def update_dynamic_threshold_all_groups(kpi_name: str, request: Request, payload: DynamicUpdate):
     auth.require_role(request, ["admin", "manager"])
 
-    """
-    Update thresholds for ALL trade groups within a dynamic KPI at once.
-    """
-    if not THRESHOLD_FILE.exists():
-        raise HTTPException(status_code=404, detail="Thresholds file not found")
-
-    with open(THRESHOLD_FILE, "r") as f:
-        data = json.load(f)
+    # Load existing data (prefer DB)
+    data = None
+    try:
+        data = get_config("thresholds")
+    except Exception as e:
+        print(f"Error fetching thresholds from DB for dynamic update all: {e}")
+    
+    if not data and THRESHOLD_FILE.exists():
+        with open(THRESHOLD_FILE, "r") as f:
+            data = json.load(f)
+    
+    if not data:
+        raise HTTPException(status_code=404, detail="Thresholds configuration not found")
 
     kpis = data.get("kpis", {})
-
     if kpi_name not in kpis:
         raise HTTPException(status_code=404, detail=f"KPI '{kpi_name}' not found")
 
     kpi_config = kpis[kpi_name]
-
     if "dynamic" not in kpi_config:
         raise HTTPException(status_code=400, detail=f"KPI '{kpi_name}' is not a dynamic KPI")
 
     dynamic_config = kpi_config["dynamic"]
-
     if dynamic_config.get("type") != "trade_based":
         raise HTTPException(status_code=400, detail=f"KPI '{kpi_name}' is not trade-based")
 
@@ -454,24 +488,18 @@ def update_dynamic_threshold_all_groups(kpi_name: str, request: Request, payload
     # Write the same thresholds to every existing trade group key
     thresholds_by_trade = dynamic_config.get("thresholds_by_trade", {})
     for trade_key in list(thresholds_by_trade.keys()):
-        # If the length changed, we are updating ALL trades in the list anyway
         thresholds_by_trade[trade_key] = thresholds
         
-    # Also ensure we add any known trade groups/subgroups that might be missing
-    # in case the frontend sends a request for a newly added trade group.
-    # The frontend usually explicitly updates each trade individually in the grid,
-    # but the 'all' endpoint should at least ensure the main group structure exists.
-    # We mainly rely on the frontend individual calls or the loop above, but we also 
-    # need to check if a specific group/subgroup was requested directly.
-    # The issue here was specifically when "Drainage" was requested individually 
-    # but didn't exist in the JSON yet. That is actually handled by the other endpoint.
-    # Let's just make sure both handle missing keys safely by initializing if not found.
+    # Save to both
+    try:
+        save_config("thresholds", data)
+    except Exception as e:
+        print(f"Error saving updated thresholds to DB: {e}")
 
     with open(THRESHOLD_FILE, "w") as f:
         json.dump(data, f, indent=2)
 
     reload_kpi_config()
-
     return {"status": "success", "kpi": kpi_name, "applied_to": list(thresholds_by_trade.keys())}
 
 

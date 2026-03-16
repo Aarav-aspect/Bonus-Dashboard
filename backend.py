@@ -924,6 +924,7 @@ WEBFLEET_EMAIL_MAP = {
     "astevey17@hotmail.co.uk":          "steve.freitas@aspect.co.uk",
     "elushmillion@icloud.com":          "emiljan.lushja@aspect.co.uk",
     "jordanleemcfeeters@yahoo.com":     "jordan.mcfeeters@aspect.co.uk",
+    "angelos67duro@gmail.com":          "angelos.ntouro@aspect.co.uk",
 
     # Fire Safety
     "damienf.kfc@contractor.net":       "damien.fraser@aspect.co.uk",
@@ -948,6 +949,7 @@ WEBFLEET_EMAIL_MAP = {
     "idsystems@live.co.uk":             "michael.hall@aspect.co.uk",
     "scottsmith9696@hotmail.co.uk":     "scott.smith@aspect.co.uk",
     "ollydealey@gmail.com":             "oliver.dealey@aspect.co.uk",
+    
 
     # Multi / Building Fabric
     "arroncox64@yahoo.co.uk":           "aaron.cox@aspect.co.uk",
@@ -1721,7 +1723,6 @@ def compute_kpis(
         "Reviews Count": int(count_reviews),
         "Average Review Rating": float(avg_rating) if avg_rating is not None else None,
         "Review Ratio %": float(review_ratio) if review_ratio is not None else None,
-        "Absence %": 10.0,
         "Top Performers %": 20.0,
         "Red Flags %": 20.0,
         "Engineer Retention %": float(
@@ -1794,7 +1795,6 @@ def compute_kpis(
             "SA Attended": kpis.get(normalise_kpi_name("SA Attended")),
             "Average Site Value (£)": kpis.get(normalise_kpi_name("Average Site Value (£)")),
             "Late to Site %": kpis.get(normalise_kpi_name("Late to Site %")),
-            "Absence %": kpis.get(normalise_kpi_name("Absence %")),
         },
     }
 

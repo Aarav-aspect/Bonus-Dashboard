@@ -129,8 +129,7 @@ const Thresholds = () => {
             "Callback Jobs",
             "SA Attended",
             "Average Site Value (£)",
-            "Late to Site %",
-            "Absence %"
+            "Late to Site %"
         ]
     };
 

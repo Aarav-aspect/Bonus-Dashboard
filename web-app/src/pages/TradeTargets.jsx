@@ -181,7 +181,7 @@ const TradeTargets = () => {
         "Procedural": ["TQR Ratio %", "TQR (Not Satisfied) Ratio %", "Unclosed SA %", "Reactive 6+ hours %"],
         "Satisfaction": ["Average Review Rating", "Review Ratio %", "Engineer Satisfaction %", "Cases %", "Engineer Retention %"],
         "Vehicular": ["Average Driving Score", "Drivers with <7", "VCR Update %"],
-        "Productivity": ["Ops Count %", "Sales Target Achievement %", "Callback Jobs %", "SA Attended", "Average Site Value (£)", "Late to Site %", "Absence %"]
+        "Productivity": ["Ops Count %", "Sales Target Achievement %", "Callback Jobs %", "SA Attended", "Average Site Value (£)", "Late to Site %"]
     };
 
     const getThresholds = (kpiName) => {

@@ -3,12 +3,22 @@ import re
 import json
 from pathlib import Path
 import builtins
+from database import get_config
 
 
 # Bonus pot values
 BONUS_POT_FILE = Path("bonuspot.json")
 
 def load_bonus_pots():
+    # Prefer database
+    try:
+        config = get_config("bonuspot")
+        if config:
+            return config
+    except Exception as e:
+        print(f"Warning: Could not fetch bonus pots from DB: {e}")
+
+    # Fallback to local file
     if BONUS_POT_FILE.exists():
         with open(BONUS_POT_FILE, "r") as f:
             return json.load(f)
@@ -49,6 +59,17 @@ KPI_CONFIG = {}
 
 def reload_kpi_config():
     global KPI_CONFIG
+    
+    # Prefer database
+    try:
+        config = get_config("thresholds")
+        if config:
+            KPI_CONFIG = config.get("kpis", {})
+            return
+    except Exception as e:
+        print(f"Warning: Could not fetch thresholds from DB: {e}")
+
+    # Fallback to local file
     if THRESHOLD_FILE.exists():
         with open(THRESHOLD_FILE, "r") as f:
             KPI_CONFIG = json.load(f)["kpis"]
