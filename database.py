@@ -13,11 +13,6 @@ load_dotenv()
 _env = {k.strip(): v for k, v in os.environ.items()}
 DATABASE_URL = _env.get("DATABASE_URL")
 
-# Debug: log all DATABASE_URL-related env vars
-import sys
-_db_keys = [k for k in os.environ.keys() if "DATABASE" in k.upper() or "DB" in k.upper()]
-print(f"[DEBUG] DATABASE-related env keys: {_db_keys}", file=sys.stderr)
-print(f"[DEBUG] DATABASE_URL resolved: {'SET' if DATABASE_URL else 'NOT SET'}", file=sys.stderr)
 
 if not DATABASE_URL:
     secrets_path = Path("secrets.toml")
