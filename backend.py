@@ -2007,7 +2007,7 @@ GSHEET_CREDS_FILE = os.environ.get(
     "GSHEET_CREDS_FILE",
     os.path.join(os.path.dirname(os.path.abspath(__file__)), "bonus-dashboard-9e3fb8d8d57d.json"),
 )
-GSHEET_WORKSHEET = "Dummy data"
+GSHEET_WORKSHEET = "TM"
 
 
 TRADE_TO_SHEET_PREFIX = {
