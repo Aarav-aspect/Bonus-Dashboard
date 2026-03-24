@@ -9,7 +9,9 @@ from pathlib import Path
 load_dotenv()
 
 # Prioritize .env, then secrets.toml
-DATABASE_URL = os.getenv("DATABASE_URL")
+# Strip whitespace from env var names to handle Cloud Run env vars with trailing spaces
+_env = {k.strip(): v for k, v in os.environ.items()}
+DATABASE_URL = _env.get("DATABASE_URL")
 
 if not DATABASE_URL:
     secrets_path = Path("secrets.toml")
