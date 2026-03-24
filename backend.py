@@ -2003,7 +2003,10 @@ _GSHEET_CACHE_TS: float = 0.0
 _GSHEET_CACHE_TTL: float = 300  # 5 minutes
 
 GSHEET_ID = "1ehYMcI0Plwup7I11WEnyaP674CSB6_lc8zrrdwa7Kjs"
-GSHEET_CREDS_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), "bonus-dashboard-9e3fb8d8d57d.json")
+GSHEET_CREDS_FILE = os.environ.get(
+    "GSHEET_CREDS_FILE",
+    os.path.join(os.path.dirname(os.path.abspath(__file__)), "bonus-dashboard-9e3fb8d8d57d.json"),
+)
 GSHEET_WORKSHEET = "Dummy data"
 
 
