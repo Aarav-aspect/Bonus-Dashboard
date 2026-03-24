@@ -1,11 +1,11 @@
 import React from 'react';
 import { BrowserRouter, Routes, Route } from 'react-router-dom';
 import Dashboard from './pages/Dashboard';
-import HistoricPerformance from './pages/HistoricPerformance';
 import Login from './pages/Login';
 import Thresholds from './pages/Thresholds';
 import TradeTargets from './pages/TradeTargets';
 import KpiDetails from './pages/KpiDetails';
+import AccountManagement from './pages/AccountManagement';
 import { AuthProvider } from './context/AuthContext';
 import ProtectedRoute from './components/layout/ProtectedRoute';
 import { Toaster } from 'sonner';
@@ -42,18 +42,18 @@ function App() {
             }
           />
           <Route
-            path="/historic"
-            element={
-              <ProtectedRoute>
-                <HistoricPerformance />
-              </ProtectedRoute>
-            }
-          />
-          <Route
             path="/kpi-details"
             element={
               <ProtectedRoute>
                 <KpiDetails />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/account-management"
+            element={
+              <ProtectedRoute>
+                <AccountManagement />
               </ProtectedRoute>
             }
           />

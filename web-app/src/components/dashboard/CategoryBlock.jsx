@@ -11,6 +11,7 @@ import TqrNotSatisfiedModal from '../drilldown/TqrNotSatisfiedModal';
 import LateToSiteModal from '../drilldown/LateToSiteModal';
 import CasesModal from '../drilldown/CasesModal';
 import VcrDetailModal from '../drilldown/VcrDetailModal';
+import SatisfactionFormModal from '../drilldown/SatisfactionFormModal';
 import { Card } from "@/components/ui/card"
 import {
     Car,
@@ -23,7 +24,7 @@ import {
     Users,
     Loader2
 } from 'lucide-react';
-import { fetchDriverScores, fetchReviewDetails, fetchOpsList, fetchUnclosedSAs, fetchCallbackJobs, fetchReactive6Plus, fetchTqrNotSatisfied, fetchLateToSite, fetchCases } from '../../api';
+import { fetchDriverScores, fetchReviewDetails, fetchOpsList, fetchUnclosedSAs, fetchCallbackJobs, fetchReactive6Plus, fetchTqrNotSatisfied, fetchLateToSite, fetchCases, fetchSatisfactionFormUpdate } from '../../api';
 
 // Mirrors targets.py BONUS_SCORE_BANDS for client-side slab calculation
 const BONUS_SCORE_BANDS = [
@@ -421,6 +422,10 @@ const CategoryBlock = ({ title, kpis, kpiScores, categoryScore, bonusPot = 0, ba
                                                 // Set a fake data object to trigger the right modal
                                                 setDriversData({ _source: 'vcr_update' });
                                                 return; // VcrDetailModal handles its own fetching
+                                            } else if (cfg.data_source === 'satisfaction_form_update') {
+                                                setDriversModalOpen(true);
+                                                setDriversData({ _source: 'satisfaction_form_update' });
+                                                return; // SatisfactionFormModal handles its own fetching
                                             } else {
                                                 // Added activeTrade here to pass the trade filter down to the API
                                                 data = await fetchDriverScores(tradeGroup, activeTrade, selectedRegion);
@@ -504,6 +509,15 @@ const CategoryBlock = ({ title, kpis, kpiScores, categoryScore, bonusPot = 0, ba
                 />
             ) : driversData?._source === 'vcr_update' ? (
                 <VcrDetailModal
+                    isOpen={driversModalOpen}
+                    onClose={() => setDriversModalOpen(false)}
+                    tradeGroup={tradeGroup}
+                    tradeFilter={activeTrade}
+                    regionFilter={selectedRegion}
+                    monthName={selectedMonth}
+                />
+            ) : driversData?._source === 'satisfaction_form_update' ? (
+                <SatisfactionFormModal
                     isOpen={driversModalOpen}
                     onClose={() => setDriversModalOpen(false)}
                     tradeGroup={tradeGroup}

@@ -33,7 +33,11 @@ from backend import (
 
 import json
 from pathlib import Path
-from database import get_config, save_config, get_db_connection
+from database import (
+    get_config, save_config, get_db_connection,
+    get_all_users, get_user_by_email, create_user, update_user, delete_user,
+    initialize_db,
+)
 
 BONUS_POT_FILE = Path("bonuspot.json")
 THRESHOLD_FILE = Path("thresholds.json")
@@ -49,6 +53,7 @@ from kpi_drilldown_config import KPI_DRILLDOWNS
 from mapping import TRADE_GROUP_PHASE, REGION_OPTIONS_BY_PHASE, get_region_for_trade
 
 # App startup
+initialize_db()
 
 app = FastAPI(
     title="Performance Dashboard API",
@@ -175,11 +180,25 @@ async def callback_microsoft(request: Request, code: str):
     name = claims.get("name", "")
     email = claims.get("preferred_username") or claims.get("email") or ""
 
-    # 4. Parse roles from App Roles claim
+    # 4. Parse roles from App Roles claim (Azure AD)
     roles = claims.get("roles", [])
     role_info = auth.parse_role_claims(roles)
 
-
+    # 4b. Check if this user has a DB-managed role (overrides Azure AD role)
+    try:
+        db_user = get_user_by_email(email)
+        if db_user:
+            role_info = {
+                "role": db_user["role"],
+                "assigned_group": db_user.get("assigned_group"),
+                "assigned_trade": db_user.get("assigned_trade"),
+                "assigned_region": db_user.get("assigned_region"),
+            }
+            # Sync name from Azure if not set in DB
+            if not db_user.get("name") and name:
+                update_user(db_user["id"], {"name": name})
+    except Exception:
+        pass  # Fall back to Azure AD role on any DB error
 
     # 5. Build user data
     user_data = {
@@ -251,6 +270,141 @@ def dev_login(request: Request, data: DevLoginRequest, response: Response):
     
     auth.set_session_cookie(request, response, token)
     return {"status": "success", "message": f"Logged in as {data.role}"}
+
+
+# ---------------------------------------------------------------------------
+# Account management — admin-only CRUD for app users
+# ---------------------------------------------------------------------------
+
+# Cache the Graph API token so we don't request a new one every search
+_graph_token_cache: dict = {"token": None, "expires_at": 0}
+
+async def _get_graph_token() -> str:
+    """Obtain (or return cached) an app-only Microsoft Graph access token."""
+    import time
+    now = time.time()
+    if _graph_token_cache["token"] and now < _graph_token_cache["expires_at"] - 60:
+        return _graph_token_cache["token"]
+    import httpx as _httpx
+    url = f"https://login.microsoftonline.com/{auth.MICROSOFT_TENANT_ID}/oauth2/v2.0/token"
+    async with _httpx.AsyncClient() as client:
+        resp = await client.post(url, data={
+            "client_id":     auth.MICROSOFT_CLIENT_ID,
+            "client_secret": auth.MICROSOFT_CLIENT_SECRET,
+            "scope":         "https://graph.microsoft.com/.default",
+            "grant_type":    "client_credentials",
+        })
+        resp.raise_for_status()
+        data = resp.json()
+        _graph_token_cache["token"] = data["access_token"]
+        _graph_token_cache["expires_at"] = now + data.get("expires_in", 3600)
+        return _graph_token_cache["token"]
+
+
+@app.get("/admin/users/search")
+async def search_org_users(request: Request, q: str = ""):
+    """Search Azure AD directory for users matching a query. Admin only."""
+    auth.require_role(request, ["admin"])
+    if not q or len(q) < 2:
+        return {"users": []}
+    try:
+        token = await _get_graph_token()
+        import httpx as _httpx
+        q_safe = q.replace("'", "''")  # escape single quotes for OData filter
+        async with _httpx.AsyncClient() as client:
+            resp = await client.get(
+                "https://graph.microsoft.com/v1.0/users",
+                headers={"Authorization": f"Bearer {token}"},
+                params={
+                    "$filter": f"startsWith(displayName,'{q_safe}') or startsWith(userPrincipalName,'{q_safe}')",
+                    "$select": "id,displayName,mail,userPrincipalName",
+                    "$top": 15,
+                },
+            )
+            if not resp.is_success:
+                return {"users": [], "error": f"Graph {resp.status_code}: {resp.text[:300]}"}
+            results = resp.json().get("value", [])
+        users = [
+            {
+                "id":    u.get("id"),
+                "name":  u.get("displayName") or "",
+                "email": u.get("mail") or u.get("userPrincipalName") or "",
+            }
+            for u in results
+            if u.get("mail") or u.get("userPrincipalName")
+        ]
+        return {"users": users}
+    except Exception as e:
+        return {"users": [], "error": str(e)}
+
+
+class UserCreateRequest(BaseModel):
+    email: str
+    name: Optional[str] = None
+    role: str = "user"
+    assigned_group: Optional[str] = None
+    assigned_trade: Optional[str] = None
+    assigned_region: Optional[str] = None
+
+
+class UserUpdateRequest(BaseModel):
+    name: Optional[str] = None
+    role: Optional[str] = None
+    assigned_group: Optional[str] = None
+    assigned_trade: Optional[str] = None
+    assigned_region: Optional[str] = None
+
+
+@app.get("/admin/users")
+def list_users(request: Request):
+    """List all managed users. Admin only."""
+    auth.require_role(request, ["admin"])
+    users = get_all_users()
+    # Convert datetime objects to ISO strings for JSON serialisation
+    for u in users:
+        for field in ("created_at", "updated_at"):
+            if u.get(field) and hasattr(u[field], "isoformat"):
+                u[field] = u[field].isoformat()
+    return {"users": users}
+
+
+@app.post("/admin/users")
+def add_user(request: Request, data: UserCreateRequest):
+    """Create a managed user. Admin only."""
+    auth.require_role(request, ["admin"])
+    try:
+        user = create_user(data.dict())
+        for field in ("created_at", "updated_at"):
+            if user.get(field) and hasattr(user[field], "isoformat"):
+                user[field] = user[field].isoformat()
+        return {"user": user}
+    except Exception as e:
+        if "unique" in str(e).lower() or "duplicate" in str(e).lower():
+            raise HTTPException(status_code=409, detail="A user with this email already exists.")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.put("/admin/users/{user_id}")
+def edit_user(request: Request, user_id: str, data: UserUpdateRequest):
+    """Update a managed user's role/permissions. Admin only."""
+    auth.require_role(request, ["admin"])
+    user = update_user(user_id, data.dict(exclude_none=False))
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found.")
+    for field in ("created_at", "updated_at"):
+        if user.get(field) and hasattr(user[field], "isoformat"):
+            user[field] = user[field].isoformat()
+    return {"user": user}
+
+
+@app.delete("/admin/users/{user_id}")
+def remove_user(request: Request, user_id: str):
+    """Delete a managed user. Admin only."""
+    auth.require_role(request, ["admin"])
+    deleted = delete_user(user_id)
+    if not deleted:
+        raise HTTPException(status_code=404, detail="User not found.")
+    return {"status": "deleted"}
 
 
 # Schemas
@@ -362,20 +516,26 @@ def save_bonus_pots(pots: Dict[str, Any], request: Request):
 def get_kpi_config(request: Request):
     auth.require_user(request)
 
-    # Try database first
+    # Load file as baseline (always includes newly added KPIs)
+    file_kpis = {}
+    if THRESHOLD_FILE.exists():
+        try:
+            with open(THRESHOLD_FILE, "r") as f:
+                file_kpis = json.load(f).get("kpis", {})
+        except Exception:
+            pass
+
+    # Merge DB on top: DB values win for existing KPIs, file fills in any gaps
     try:
         config = get_config("thresholds")
         if config:
-            return config.get("kpis", {})
+            db_kpis = config.get("kpis", {})
+            merged = {**file_kpis, **db_kpis}
+            return merged
     except Exception as e:
         print(f"Error fetching thresholds from DB: {e}")
 
-    # Fallback to file
-    if THRESHOLD_FILE.exists():
-        with open(THRESHOLD_FILE, "r") as f:
-            data = json.load(f)
-            return data.get("kpis", {})
-    return {}
+    return file_kpis
 
 @app.post("/config/kpi-config")
 def save_kpi_config(data: Dict[str, Any], request: Request):
@@ -433,6 +593,9 @@ def update_dynamic_threshold(kpi_name: str, trade_group: str, request: Request, 
     scores = payload.scores if payload.scores is not None else dynamic_config.get("scores", [])
     thresholds = payload.thresholds
 
+    # Persist the (possibly trimmed) scores array so deleted rows are removed everywhere
+    dynamic_config["scores"] = scores
+
     thresholds_by_trade = dynamic_config.setdefault("thresholds_by_trade", {})
     thresholds_by_trade[trade_group] = thresholds
 
@@ -485,9 +648,17 @@ def update_dynamic_threshold_all_groups(kpi_name: str, request: Request, payload
     if payload.scores is not None:
         dynamic_config["scores"] = scores
 
-    # Write the same thresholds to every existing trade group key
-    thresholds_by_trade = dynamic_config.get("thresholds_by_trade", {})
-    for trade_key in list(thresholds_by_trade.keys()):
+    # Build the full set of keys: all trade groups + all sub-trade keys (with name mapping)
+    _SA_KEY_MAP = {"Gas & HVAC": "HVAC"}
+    all_keys = set()
+    for group_name, subtrades in TRADE_SUBGROUPS.items():
+        all_keys.add(group_name)
+        for subtrade_label in subtrades:
+            all_keys.add(_SA_KEY_MAP.get(subtrade_label, subtrade_label))
+
+    # Write thresholds to all known keys (creating missing ones too)
+    thresholds_by_trade = dynamic_config.setdefault("thresholds_by_trade", {})
+    for trade_key in all_keys:
         thresholds_by_trade[trade_key] = thresholds
         
     # Save to both
@@ -520,6 +691,19 @@ def get_gsheet_shareholder_breakdown(data: GsheetShareholderRequest, request: Re
         "region": data.region,
         "found": bool(col_data),
     }
+
+
+# Reverse lookup: raw Trade_Lookup__c value -> subgroup display name (e.g. "Gas" -> "Gas & HVAC")
+_TRADE_TO_SUBGROUP: Dict[str, str] = {}
+for _grp, _subs in TRADE_SUBGROUPS.items():
+    for _subname, _trades in _subs.items():
+        for _t in _trades:
+            _TRADE_TO_SUBGROUP[_t.lower()] = _subname
+
+
+def _trade_display_name(raw_trade: str) -> str:
+    """Return the human-readable sub-group name for a raw Trade_Lookup__c value."""
+    return _TRADE_TO_SUBGROUP.get((raw_trade or "").lower(), raw_trade)
 
 
 @app.post("/api/drilldown/drivers")
@@ -588,7 +772,7 @@ def get_driver_scores(data: DrilldownDriversRequest, request: Request):
             "name": name if name else "Unknown",
             "score": score_scaled,          # send 0-10 value to frontend
             "below_threshold": score_scaled < 7.0,  # consistent with KPI: < 7 on 0-10 scale
-            "trade": str(row.get("Trade_Lookup__c", "Unknown")),
+            "trade": _trade_display_name(str(row.get("Trade_Lookup__c", "Unknown"))),
             "region": region,
             "missing_data": False,
         })
@@ -622,7 +806,7 @@ def get_driver_scores(data: DrilldownDriversRequest, request: Request):
                 "name": name if name else "Unknown",
                 "score": None,
                 "below_threshold": False,
-                "trade": str(row.get("Trade_Lookup__c", "Unknown")),
+                "trade": _trade_display_name(str(row.get("Trade_Lookup__c", "Unknown"))),
                 "region": region,
                 "missing_data": True,
             })
@@ -832,6 +1016,84 @@ def get_vcr_update(data: DrilldownReviewsRequest, request: Request):
             "drivers": driver_stats,
             "trade_group": data.trade_group,
             "total_count": len(driver_stats),
+        }
+    except Exception as e:
+        traceback.print_exc()
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.post("/api/drilldown/satisfaction-form-update")
+def get_satisfaction_form_update(data: DrilldownReviewsRequest, request: Request):
+    """
+    Returns per-engineer satisfaction form submission status (0/1 or 1/1) for a given trade group and month.
+    """
+    user = auth.get_current_user(request)
+    if not user:
+        raise HTTPException(status_code=401, detail="Not authenticated")
+
+    import traceback
+
+    try:
+        df_engineers = fetch_service_resources()
+        if df_engineers.empty:
+            return {"engineers": [], "trade_group": data.trade_group, "total_count": 0, "submitted_count": 0}
+
+        trades = resolve_trades_for_filters(data.trade_group, data.trade_filter)
+        if trades:
+            df_filtered = df_engineers[df_engineers["Trade_Lookup__c"].isin(trades)].copy()
+        else:
+            df_filtered = df_engineers[df_engineers["Trade Group"] == data.trade_group].copy()
+
+        if data.region_filter != "All":
+            df_filtered = df_filtered[
+                df_filtered["Effective_PostalCode__c"].apply(
+                    lambda pc: get_region_for_trade(str(pc) if pc else "", data.trade_group) == data.region_filter
+                )
+            ]
+
+        # Fetch satisfaction forms for the selected month
+        trades_tuple = tuple(trades) if trades else ()
+        trades_str = ",".join([f"'{t}'" for t in trades_tuple]) if trades_tuple else "''"
+        start_iso, end_iso = get_month_range(data.month)
+        from backend import sf_client, queries
+        q = queries.get_engineer_satisfaction_query(trades_str, start_iso, end_iso)
+        try:
+            res = sf_client().query_all(q)
+            records = res.get("records", [])
+        except Exception:
+            records = []
+
+        # Build a set of resource IDs that submitted a form
+        submitted_ids = set()
+        for rec in records:
+            rid = str(rec.get("Service_Resource__c") or "")
+            if rid:
+                submitted_ids.add(rid)
+
+        engineer_stats = []
+        for _, row in df_filtered.iterrows():
+            name = row.get("Engineer Name", "") or "Unknown"
+            trade = _trade_display_name(str(row.get("Trade_Lookup__c", "Unknown")))
+            pc = str(row.get("Effective_PostalCode__c", ""))
+            region = get_region_for_trade(pc, data.trade_group) if pc else "Unknown"
+            resource_id = str(row.get("ServiceResourceId", ""))
+            submitted = 1 if resource_id and resource_id in submitted_ids else 0
+            engineer_stats.append({
+                "name": name,
+                "trade": trade,
+                "region": region,
+                "submitted": submitted,
+                "target": 1,
+            })
+
+        # Sort: not submitted first, then alphabetically
+        engineer_stats.sort(key=lambda o: (o["submitted"], o["name"]))
+
+        return {
+            "engineers": engineer_stats,
+            "trade_group": data.trade_group,
+            "total_count": len(engineer_stats),
+            "submitted_count": sum(1 for e in engineer_stats if e["submitted"] == 1),
         }
     except Exception as e:
         traceback.print_exc()
@@ -1309,28 +1571,47 @@ def get_dashboard(data: DashboardRequest, request: Request):
     try:
         start_iso, end_iso = get_month_range(data.month)
         trades = resolve_trades_for_filters(req_group, req_trade)
+        # Maps dashboard trade names to the keys used in thresholds_by_trade config
+        TRADE_TO_THRESHOLD_KEY = {
+            "Gas & HVAC": "HVAC",
+        }
+
         # Determine threshold key
         # If specific trade selected (and not "All"), use that trade name for thresholds.
         # If "All" selected, use the Group Name for thresholds.
         threshold_key = req_group
         if req_trade and req_trade != "All":
-            threshold_key = req_trade
+            threshold_key = TRADE_TO_THRESHOLD_KEY.get(req_trade, req_trade)
             
         req_region = data.region_filter or "All"
 
         result = compute_kpis(
             req_group, trades, start_iso, end_iso,
-            scoring_key=threshold_key, bonus_trade=req_trade, region_filter=req_region
+            scoring_key=threshold_key, bonus_trade=req_trade, region_filter=req_region,
+            trade_filter=req_trade or "All"
         )
 
         # Fetch Base Bonus Pot from Google Sheet (Excel) for the blue card
         bonus = dict(result["bonus"])
         try:
-            from backend import get_gsheet_column_data
-            gsheet_data = get_gsheet_column_data(req_trade, req_region, req_group)
-            gsheet_pot = gsheet_data.get("Base Bonus Pot")
-            if gsheet_pot is not None:
-                bonus["gsheet_pot"] = float(gsheet_pot)
+            from backend import get_gsheet_column_data, TRADE_TO_SHEET_PREFIX
+            if req_trade and req_trade != "All":
+                if req_trade in TRADE_TO_SHEET_PREFIX:
+                    # Sub-trade has its own sheet column — look it up directly
+                    sub_trade_data = get_gsheet_column_data(req_trade, req_region, trade_group="")
+                    gsheet_pot = sub_trade_data.get("Base Bonus Pot")
+                    if gsheet_pot is not None:
+                        bonus["gsheet_pot"] = float(gsheet_pot)
+                    else:
+                        bonus["bonus_pot_unavailable"] = req_trade
+                else:
+                    # No individual pot for this sub-trade
+                    bonus["bonus_pot_unavailable"] = req_trade
+            else:
+                gsheet_data = get_gsheet_column_data(req_trade, req_region, req_group)
+                gsheet_pot = gsheet_data.get("Base Bonus Pot")
+                if gsheet_pot is not None:
+                    bonus["gsheet_pot"] = float(gsheet_pot)
         except Exception:
             pass
 

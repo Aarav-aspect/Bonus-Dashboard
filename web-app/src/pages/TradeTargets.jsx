@@ -179,38 +179,42 @@ const TradeTargets = () => {
     const categories = {
         "Conversion": ["Estimate Production / Reactive Leads %", "Estimate Conversion %", "FOC Conversion Rate %", "Average Converted Estimate Value (£)"],
         "Procedural": ["TQR Ratio %", "TQR (Not Satisfied) Ratio %", "Unclosed SA %", "Reactive 6+ hours %"],
-        "Satisfaction": ["Average Review Rating", "Review Ratio %", "Engineer Satisfaction %", "Cases %", "Engineer Retention %"],
+        "Satisfaction": ["Average Review Rating", "Review Ratio %", "Engineer Satisfaction %", "Satisfaction Form Update %", "Cases %", "Engineer Retention %"],
         "Vehicular": ["Average Driving Score", "Drivers with <7", "VCR Update %"],
         "Productivity": ["Ops Count %", "Sales Target Achievement %", "Callback Jobs %", "SA Attended", "Average Site Value (£)", "Late to Site %"]
     };
+
+    // Maps sub-trade UI labels to the keys used in thresholds_by_trade config
+    const TRADE_TO_THRESHOLD_KEY = { "Gas & HVAC": "HVAC" };
 
     const getThresholds = (kpiName) => {
         const cfg = kpiConfig[kpiName];
         if (!cfg) return null;
 
         if (cfg.dynamic && cfg.dynamic.thresholds_by_trade) {
-            // Dynamic KPI
-            let matchingTrade = null;
+            const byTrade = cfg.dynamic.thresholds_by_trade;
+            const scores = cfg.dynamic.scores;
+            let configKey = null;
 
-            // If we have a specific subgroup filter, try to find a representative trade for it
             if (selectedFilter !== "All") {
-                const subgroupTrades = (tradeSubgroups[selectedGroup] && tradeSubgroups[selectedGroup][selectedFilter]) || [];
-                matchingTrade = subgroupTrades.find(t => t in cfg.dynamic.thresholds_by_trade);
+                // Use the sub-trade label directly (mapped if needed)
+                configKey = TRADE_TO_THRESHOLD_KEY[selectedFilter] || selectedFilter;
             }
 
-            // Fallback or if "All" is selected: use first matching trade from the whole group
-            if (!matchingTrade) {
-                const tradeTrades = tradeGroups[selectedGroup] || [];
-                matchingTrade = tradeTrades.find(t => t in cfg.dynamic.thresholds_by_trade);
+            // Fallback to group-level key
+            if (!configKey || !(configKey in byTrade)) {
+                configKey = selectedGroup in byTrade ? selectedGroup : null;
             }
 
-            if (matchingTrade) {
-                const thresholds = cfg.dynamic.thresholds_by_trade[matchingTrade];
-                const scores = cfg.dynamic.scores;
-                return thresholds.map((t, i) => ({
-                    min: t,
-                    score: scores[i]
-                }));
+            // Fallback to first sub-trade label for this group
+            if (!configKey) {
+                const subTradeLabels = Object.keys(tradeSubgroups[selectedGroup] || {});
+                const mappedLabel = subTradeLabels.map(t => TRADE_TO_THRESHOLD_KEY[t] || t).find(k => k in byTrade);
+                configKey = mappedLabel || null;
+            }
+
+            if (configKey && byTrade[configKey]) {
+                return byTrade[configKey].map((t, i) => ({ min: t, score: scores[i] }));
             }
             return "Dynamic / Multiple targets";
         }

@@ -35,7 +35,7 @@ const Header = ({
     const isPathActive = (path) => location.pathname === path;
 
     return (
-        <header className="flex justify-between items-center mb-8 pb-4 border-b border-black/5">
+        <header className="flex justify-between items-center mb-8 pb-4">
             {/* Logo Area */}
             <div className="flex items-center gap-6">
                 <Link to="/dashboard" className="transition-transform hover:scale-105 active:scale-95">
@@ -60,15 +60,6 @@ const Header = ({
                             Management
                         </Link>
                     )}
-                    {!isPathActive('/historic') && (
-                        <Link
-                            to="/historic"
-                            className={`font-bold text-sm uppercase tracking-wider transition-colors ${isPathActive('/historic') ? 'text-brand-blue' : 'text-muted-foreground hover:text-brand-blue'
-                                }`}
-                        >
-                            History
-                        </Link>
-                    )}
 
                 </div>
             </div>
@@ -83,7 +74,7 @@ const Header = ({
                         <div className="flex flex-col gap-1">
                             <span className="text-[9px] font-bold text-muted-foreground uppercase pl-1 tracking-wider">Month</span>
                             <Select value={selectedMonth} onValueChange={onMonthChange}>
-                                <SelectTrigger className="w-[140px] h-8 rounded-md border border-input bg-white px-2 py-1 text-xs shadow-sm hover:border-brand-blue focus:ring-1 focus:ring-brand-blue transition-all font-bold">
+                                <SelectTrigger className="w-[140px] h-8 rounded-md border border-input bg-white px-2 py-1 text-xs shadow-sm hover:border-brand-blue focus:ring-1 focus:ring-brand-blue transition-all font-bold cursor-pointer">
                                     <SelectValue placeholder="Select Month" />
                                 </SelectTrigger>
                                 <SelectContent className="rounded-xl border-black/5 shadow-lg bg-white">
@@ -105,7 +96,7 @@ const Header = ({
                             >
                                 <SelectTrigger
                                     disabled={!!user?.assigned_group}
-                                    className="w-[180px] h-8 rounded-md border border-input bg-white px-2 py-1 text-xs shadow-sm hover:border-brand-blue focus:ring-1 focus:ring-brand-blue transition-all font-bold disabled:opacity-80 disabled:bg-gray-50"
+                                    className="w-[180px] h-8 rounded-md border border-input bg-white px-2 py-1 text-xs shadow-sm hover:border-brand-blue focus:ring-1 focus:ring-brand-blue transition-all font-bold disabled:opacity-80 disabled:bg-gray-50 cursor-pointer"
                                 >
                                     <SelectValue placeholder="Select Group" />
                                 </SelectTrigger>
@@ -129,7 +120,7 @@ const Header = ({
                                 >
                                     <SelectTrigger
                                         disabled={!!user?.assigned_trade}
-                                        className="w-[160px] h-8 rounded-md border border-input bg-white px-2 py-1 text-xs shadow-sm hover:border-brand-blue focus:ring-1 focus:ring-brand-blue transition-all font-bold disabled:opacity-80 disabled:bg-gray-50"
+                                        className="w-[160px] h-8 rounded-md border border-input bg-white px-2 py-1 text-xs shadow-sm hover:border-brand-blue focus:ring-1 focus:ring-brand-blue transition-all font-bold disabled:opacity-80 disabled:bg-gray-50 cursor-pointer"
                                     >
                                         <SelectValue placeholder="Select Trade" />
                                     </SelectTrigger>
@@ -153,7 +144,7 @@ const Header = ({
                             >
                                 <SelectTrigger
                                     disabled={!!user?.assigned_region}
-                                    className="w-[120px] h-8 rounded-md border border-input bg-white px-2 py-1 text-xs shadow-sm hover:border-brand-blue focus:ring-1 focus:ring-brand-blue transition-all font-bold disabled:opacity-80 disabled:bg-gray-50"
+                                    className="w-[120px] h-8 rounded-md border border-input bg-white px-2 py-1 text-xs shadow-sm hover:border-brand-blue focus:ring-1 focus:ring-brand-blue transition-all font-bold disabled:opacity-80 disabled:bg-gray-50 cursor-pointer"
                                 >
                                     <SelectValue placeholder="Select Region" />
                                 </SelectTrigger>
@@ -179,7 +170,7 @@ const Header = ({
                     )}
                     <button
                         onClick={logout}
-                        className="ml-1 text-[10px] font-bold text-white uppercase tracking-wider bg-red-500 hover:bg-red-600 px-2 py-1 rounded-md transition-colors shadow-sm"
+                        className="ml-1 text-[10px] font-bold text-muted-foreground uppercase tracking-wider bg-white hover:bg-gray-50 border border-black/10 px-2 py-1 rounded-md transition-colors shadow-sm cursor-pointer"
                     >
                         Sign Out
                     </button>

@@ -1,14 +1,23 @@
 substitutions:
   _TAG: latest
+  _REGION: europe-west2
+  _AR_REPO: bonus-repo
 
 steps:
-  # 1. Build the container image
+  # 1. Build the container image targeting linux/amd64 (required for Cloud Run)
   - name: 'gcr.io/cloud-builders/docker'
-    args: ['build', '--no-cache', '-t', 'gcr.io/$PROJECT_ID/bonus-dashboard:${_TAG}', '.']
+    args:
+      - 'build'
+      - '--no-cache'
+      - '--platform'
+      - 'linux/amd64'
+      - '-t'
+      - '${_REGION}-docker.pkg.dev/$PROJECT_ID/${_AR_REPO}/bonus-dashboard:${_TAG}'
+      - '.'
 
-  # 2. Push the image to Container Registry
+  # 2. Push the image to Artifact Registry
   - name: 'gcr.io/cloud-builders/docker'
-    args: ['push', 'gcr.io/$PROJECT_ID/bonus-dashboard:${_TAG}']
+    args: ['push', '${_REGION}-docker.pkg.dev/$PROJECT_ID/${_AR_REPO}/bonus-dashboard:${_TAG}']
 
   # 3. Deploy to Cloud Run
   - name: 'gcr.io/google.com/cloudsdktool/cloud-sdk'
@@ -18,15 +27,15 @@ steps:
       - 'deploy'
       - 'bonus-dashboard'
       - '--image'
-      - 'gcr.io/$PROJECT_ID/bonus-dashboard:${_TAG}'
+      - '${_REGION}-docker.pkg.dev/$PROJECT_ID/${_AR_REPO}/bonus-dashboard:${_TAG}'
       - '--region'
-      - 'europe-west2'
+      - '${_REGION}'
       - '--platform'
       - 'managed'
       - '--allow-unauthenticated'
 
 images:
-  - 'gcr.io/$PROJECT_ID/bonus-dashboard:${_TAG}'
+  - '${_REGION}-docker.pkg.dev/$PROJECT_ID/${_AR_REPO}/bonus-dashboard:${_TAG}'
 
 options:
   logging: CLOUD_LOGGING_ONLY

@@ -228,6 +228,22 @@ export async function fetchVcrUpdate(tradeGroup, month, tradeFilter = "All", reg
     return res.json();
 }
 
+export async function fetchSatisfactionFormUpdate(tradeGroup, month, tradeFilter = "All", regionFilter = "All") {
+    const res = await fetch(`${API_BASE}/api/drilldown/satisfaction-form-update`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({
+            trade_group: tradeGroup,
+            month,
+            trade_filter: tradeFilter,
+            region_filter: regionFilter
+        }),
+    });
+    if (!res.ok) throw new Error("Failed to fetch satisfaction form update list");
+    return res.json();
+}
+
 export async function fetchUnclosedSAs(tradeGroup, month, tradeFilter = "All", regionFilter = "All") {
     const res = await fetch(`${API_BASE}/api/drilldown/unclosed-sas`, {
         method: "POST",
@@ -321,5 +337,55 @@ export async function fetchCases(tradeGroup, month, tradeFilter = "All", regionF
         }),
     });
     if (!res.ok) throw new Error("Failed to fetch cases");
+    return res.json();
+}
+
+// ---------------------------------------------------------------------------
+// Account management
+// ---------------------------------------------------------------------------
+
+export async function searchOrgUsers(query) {
+    const res = await fetch(`${API_BASE}/admin/users/search?q=${encodeURIComponent(query)}`, {
+        credentials: "include",
+    });
+    if (!res.ok) throw new Error("Failed to search users");
+    return res.json();
+}
+
+export async function fetchUsers() {
+    const res = await fetch(`${API_BASE}/admin/users`, { credentials: "include" });
+    if (!res.ok) throw new Error("Failed to fetch users");
+    return res.json();
+}
+
+export async function createUser(data) {
+    const res = await fetch(`${API_BASE}/admin/users`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify(data),
+    });
+    if (res.status === 409) throw new Error("A user with this email already exists.");
+    if (!res.ok) throw new Error("Failed to create user");
+    return res.json();
+}
+
+export async function updateUser(userId, data) {
+    const res = await fetch(`${API_BASE}/admin/users/${userId}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify(data),
+    });
+    if (!res.ok) throw new Error("Failed to update user");
+    return res.json();
+}
+
+export async function deleteUser(userId) {
+    const res = await fetch(`${API_BASE}/admin/users/${userId}`, {
+        method: "DELETE",
+        credentials: "include",
+    });
+    if (!res.ok) throw new Error("Failed to delete user");
     return res.json();
 }

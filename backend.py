@@ -66,10 +66,10 @@ def get_previous_month_range(start_iso: str) -> tuple[str, str]:
 TRADE_GROUPS: Dict[str, List[str]] = {
     "HVac & Electrical": [
         "Electrical", "Heating & Hot Water (Domestic)", "Air Con, Ventilation & Refrigeration",
-        "Heating & Hot Water (Commercial)", "Electrical Renewable", "Gas", "HVAC",
+        "Heating & Hot Water (Commercial)", "Electrical Renewable", "Gas", "HVAC", "Heating Renewable",
     ],
     "Building Fabric": [
-        "Decorating", "Roofing/LeakDetection", "Windows & Doors", "Roofing",
+        "Decorating", "Roofing/LeakDetection", "Windows & Doors", "Roofing", "Roofing/Leak Detection",
         "Roof Window & Gutter Cleaning", "Handyman", "Carpentry", "Flooring Trade",
         "Plastering", "Project Management Refurbishment", "Tiling", "Fencing",
         "Brickwork & Paving", "Locksmithing", "Partition Walls & Ceilings", "Access",
@@ -87,7 +87,7 @@ TRADE_GROUPS: Dict[str, List[str]] = {
         "Damp & Mould", "Damp Proofing", "LD Commercial Mains Water Leak",
         "LD commercial Gas", "LD Damp Restoration", "Leak Detection Building Fabric",
         "Leak Detection Domestic Plumbing", "Leak Detection Industrial Plumbing",
-        "Leak Detection Domestic Gas & Heating",
+        "Leak Detection Domestic Gas & Heating", "Leak Detection Restoration (various)",
         "Damp Survey", "Mould Survey", "Damp Survey Roofing",
         "Leak Detection Commercial Gas & Heating",
         "Leak Detection Industrial Gas & Heating", "Leak Detection Diving",
@@ -102,14 +102,13 @@ TRADE_GROUPS: Dict[str, List[str]] = {
 
 TRADE_SUBGROUPS = {
     "HVac & Electrical": {
-        "Gas & HVAC": ["Air Con, Ventilation & Refrigeration", "Heating & Hot Water (Domestic)", "Heating & Hot Water (Commercial)", "Gas", "HVAC"],
+        "Gas & HVAC": ["Air Con, Ventilation & Refrigeration", "Heating & Hot Water (Domestic)", "Heating & Hot Water (Commercial)", "Gas", "HVAC", "Heating Renewable"],
         "Electrical": ["Electrical", "Electrical Renewable"],
     },
     "Building Fabric": {
         "Decoration": ["Decorating", "Plastering", "Tiling", "Wallpapering", "Decoration"],
-        "Roofing": ["Roofing/LeakDetection", "Roofing", "Roof Window & Gutter Cleaning"],
+        "Roofing": ["Roofing/LeakDetection", "Roofing", "Roof Window & Gutter Cleaning", "Roofing/Leak Detection"],
         "Multi Trades": ["Windows & Doors", "Handyman", "Carpentry", "Flooring Trade", "Fencing", "Brickwork & Paving", "Locksmithing", "Partition Walls & Ceilings", "Access", "Glazing", "Multi", "General Builders"],
-        "Project Management": ["Project Management Refurbishment", "General Refurbishment", "Bathroom Refurbishment", "Project Management Decoration"],
     },
     "Environmental Services": {
         "Gardening": ["Gardening"],
@@ -128,7 +127,7 @@ TRADE_SUBGROUPS = {
             "Leak Detection Building Fabric", "Leak Detection Domestic Plumbing",
             "Leak Detection Industrial Plumbing", "Leak Detection Domestic Gas & Heating",
             "Leak Detection Commercial Gas & Heating", "Leak Detection Industrial Gas & Heating",
-            "Leak Detection Diving"
+            "Leak Detection Diving", "Leak Detection Restoration (various)"
         ],
         "Damp": ["Damp & Mould", "Damp Proofing", "Damp Survey", "Mould Survey", "Damp Survey Roofing"],
     },
@@ -624,11 +623,14 @@ def fetch_engineer_satisfaction(
         if df_surveys.empty:
             return None, 0
 
-        scores = df_surveys["Total_Score__c"].dropna().tolist()
+        # Deduplicate by engineer to count unique submitters (engineers may submit multiple forms)
+        df_unique = df_surveys.drop_duplicates(subset=["Service_Resource__c"])
+        scores = df_unique["Total_Score__c"].dropna().tolist()
         if not scores:
             return None, 0
         avg_score = sum(scores) / len(scores)
-        return avg_score, len(scores)
+        unique_submitter_count = df_surveys["Service_Resource__c"].nunique()
+        return avg_score, unique_submitter_count
     except Exception as e:
         logger.warning(f"⚠️ Survey query error: {e}")
         return None, 0
@@ -859,7 +861,7 @@ def fetch_jobs_created_and_closed_count(
 # Add new mismatches here whenever Webfleet and Salesforce emails don't align.
 WEBFLEET_EMAIL_MAP = {
     "rionmanandvan@outlook.com":        "rion.peters@aspect.co.uk",
-    "michael.hall@aspect.co.uk":        "ziaaspect@gmail.com",
+
     "iwanengineering@outlook.com":      "igor.bochentin@aspect.co.uk",
     "busterdoyle1@gmail.com":           "phillip.doyle@aspect.co.uk",
     "frankiemclintock14@gmail.com":     "frankie.mclintock@aspect.co.uk",
@@ -871,7 +873,7 @@ WEBFLEET_EMAIL_MAP = {
     "srboom@me.com":                    "steven.boom@aspect.co.uk",
     "darrenpodmore2025@outlook.com":    "darren.podmore@aspect.co.uk",
     "s.uelectricss@gmail.com":          "serhat.uysal@aspect.co.uk",
-    "l.beeson@hotmail.com":             "lewis.beeson@aspect.co.uk",
+
     "owenct07@gmail.com":               "owen.taunton@aspect.co.uk",
     "artinpacolli@gmail.com":           "artin.pacoli@aspect.co.uk",
     "tdgallagher8777@yahoo.com":        "thomas.gallagher@aspect.co.uk",
@@ -918,6 +920,8 @@ WEBFLEET_EMAIL_MAP = {
     "tomdavies461@gmail.com":           "tom.davies@aspect.co.uk",
     "harveygoldring96@icloud.com":      "harvey.goldring@aspect.co.uk",
     "shane_brady87@hotmail.com":        "shane.bradey@aspect.co.uk",
+    "hayleywarren1989@yahoo.co.uk":     "gareth.hodson@aspect.co.uk",
+
 
     # Electrical
     "redqos121@gmail.com":              "redi.qosja@aspect.co.uk",
@@ -925,6 +929,8 @@ WEBFLEET_EMAIL_MAP = {
     "elushmillion@icloud.com":          "emiljan.lushja@aspect.co.uk",
     "jordanleemcfeeters@yahoo.com":     "jordan.mcfeeters@aspect.co.uk",
     "angelos67duro@gmail.com":          "angelos.ntouro@aspect.co.uk",
+    "richdadelectrician1@gmail.com":    "janagan.selvanayagam@aspect.co.uk",
+    "levintalimited@gmail.com":         "andrei.levinta@aspect.co.uk",
 
     # Fire Safety
     "damienf.kfc@contractor.net":       "damien.fraser@aspect.co.uk",
@@ -953,11 +959,11 @@ WEBFLEET_EMAIL_MAP = {
 
     # Multi / Building Fabric
     "arroncox64@yahoo.co.uk":           "aaron.cox@aspect.co.uk",
+    "Jack.Beaton@aspect.co.uk":         "jack.beaton@aspect.co.uk",
 
     # Pest Control (already mapped via office@bugthugsuk.com above)
 
     # Plumbing
-    "willoughby172@hotmail.co.uk":      "william.hosford@aspect.co.uk",
     "camara0081@gmail.com":             "pedro.camara@aspect.co.uk",
     "steve_j135@hotmail.com":           "steven.hayden@aspect.co.uk",
     "dsestanovich@hotmail.com":         "daniel.sestanovich@aspect.co.uk",
@@ -995,27 +1001,41 @@ def get_merged_vehicular_data() -> pd.DataFrame:
         df_merged["Email"].fillna("").astype(str).str.lower().str.strip()
     )
 
-    # Apply email overrides: replace known Webfleet-only emails with the correct Salesforce email.
-    df_merged["Email_Lower"] = df_merged["Email_Lower"].map(
-        lambda e: WEBFLEET_EMAIL_MAP.get(e, e)
-    )
-
     if df_engineers.empty:
         return pd.DataFrame()
 
     df_engineers["Email_Lower"] = (
         df_engineers["Email"].astype(str).str.lower().str.strip()
     )
-    df_merged = df_merged.merge(
-        df_engineers[["Email_Lower", "Trade Group", "Trade_Lookup__c", "Engineer Name", "Effective_PostalCode__c", "ServiceResourceId"]],
-        on="Email_Lower",
-        how="inner",
-    )
+    
+    # Ensure engineers are unique by email for merging
+    df_engineers_unique = df_engineers.drop_duplicates(subset=["Email_Lower"])
 
-    df_merged["Trade Group"] = df_merged["Trade Group"].fillna("Unknown")
-    df_merged = df_merged.drop(columns=["driverno_clean", "Email_Lower"], errors="ignore")
+    sf_cols = ["Email_Lower", "Trade Group", "Trade_Lookup__c", "Engineer Name", "Effective_PostalCode__c", "ServiceResourceId"]
 
-    return df_merged
+    # First pass: direct email match
+    df_direct = df_merged.merge(df_engineers_unique[sf_cols], on="Email_Lower", how="inner")
+
+    # Second pass: for rows that didn't match directly, apply WEBFLEET_EMAIL_MAP as fallback
+    # Correctly identify unmatched records using indicator or matching keys
+    matched_driver_nos = set(df_direct["driverno"].astype(str))
+    df_unmatched = df_merged[~df_merged["driverno"].astype(str).isin(matched_driver_nos)].copy()
+    
+    if not df_unmatched.empty:
+        df_unmatched["Email_Lower"] = df_unmatched["Email_Lower"].map(
+            lambda e: WEBFLEET_EMAIL_MAP.get(e, e)
+        )
+        df_fallback = df_unmatched.merge(df_engineers_unique[sf_cols], on="Email_Lower", how="inner")
+        df_merged_final = pd.concat([df_direct, df_fallback], ignore_index=True)
+    else:
+        df_merged_final = df_direct
+
+    df_merged_final["Trade Group"] = df_merged_final["Trade Group"].fillna("Unknown")
+    
+    # Final safety deduplication by ServiceResourceId
+    df_merged_final = df_merged_final.drop_duplicates(subset=["ServiceResourceId"])
+    
+    return df_merged_final.drop(columns=["driverno_clean", "Email_Lower"], errors="ignore")
 
 
 def calculate_vehicular_kpi(df_veh: pd.DataFrame, trade_group: str, trades: List[str] = None, region_filter: str = "All") -> dict:
@@ -1027,13 +1047,13 @@ def calculate_vehicular_kpi(df_veh: pd.DataFrame, trade_group: str, trades: List
         }
 
     df_filtered = df_veh.copy()
-    
-    # Apply Trade Filter
+
+    # Mirror the exact filtering used by fetch_ops_count so that the driver
+    # population here matches the Ops Count KPI exactly.
+    _excluded_trades = {"Key", "Utilities", "PM", "Test Ops"}
     if trades:
-        df_filtered = df_filtered[df_filtered["Trade_Lookup__c"].isin(trades)]
-        # Fallback if no specific trades found
-        if df_filtered.empty:
-            df_filtered = df_veh[df_veh["Trade Group"] == trade_group]
+        filtered_trades = [t for t in trades if t not in _excluded_trades]
+        df_filtered = df_filtered[df_filtered["Trade_Lookup__c"].isin(filtered_trades)] if filtered_trades else df_filtered.iloc[0:0]
     else:
         df_filtered = df_filtered[df_filtered["Trade Group"] == trade_group]
 
@@ -1044,7 +1064,33 @@ def calculate_vehicular_kpi(df_veh: pd.DataFrame, trade_group: str, trades: List
                 lambda pc: get_region_for_trade(pc, trade_group) == region_filter
             )
         ]
-        
+
+    if df_filtered.empty:
+        return {
+            "avg_driving_score": None,
+            "driver_count": 0,
+            "drivers_below_7_pct": None,
+        }
+
+    # Further restrict to ServiceResourceIds present in the ops count dataset,
+    # ensuring "Drivers with <7" and "Ops Count" scan the exact same people.
+    try:
+        df_ops = fetch_service_resources()
+        if not df_ops.empty and trades:
+            ops_trades = [t for t in trades if t not in _excluded_trades]
+            df_ops = df_ops[df_ops["Trade_Lookup__c"].isin(ops_trades)]
+            if region_filter != "All":
+                df_ops = df_ops[
+                    df_ops["Effective_PostalCode__c"].apply(
+                        lambda pc: get_region_for_trade(str(pc) if pc else "", trade_group) == region_filter
+                    )
+                ]
+            valid_ids = set(df_ops["ServiceResourceId"].dropna())
+            if valid_ids:
+                df_filtered = df_filtered[df_filtered["ServiceResourceId"].isin(valid_ids)]
+    except Exception:
+        pass  # fall back to trade-filtered set if cross-reference fails
+
     if df_filtered.empty:
         return {
             "avg_driving_score": None,
@@ -1097,6 +1143,7 @@ def compute_kpis(
     scoring_key: str = None,
     bonus_trade: str = None,
     region_filter: str = "All",
+    trade_filter: str = "All",
 ) -> dict:
     """
     High-level KPI computation:
@@ -1401,18 +1448,20 @@ def compute_kpis(
         ]
     
     # User asked to count ALL converted follow-on jobs (can exceed 100% if one visit raises multiple approved jobs)
+    # If denominator is 0 (no FOC/£60 visits), award full score by setting rate to None (handled below)
+    foc_no_visits = df_attended_foc.empty
     foc_conversion_rate = (
-        len(raised_from_attended_foc) / len(df_attended_foc) * 100 
-        if not df_attended_foc.empty else 0.0
+        len(raised_from_attended_foc) / len(df_attended_foc) * 100
+        if not foc_no_visits else None
     )
 
     month_key, year = infer_month_key_and_year_from_iso(start_iso)
 
-    ops_target = get_ops_count_target(trade_group_selected, month_key, year)
+    ops_target = get_ops_count_target(trade_group_selected, month_key, year, region=region_filter, trade=trade_filter)
     ops_count_achievement = (ops_count / ops_target * 100) if ops_target and ops_target > 0 else 0.0
 
     # Fetch target safely
-    sales_target = get_sales_target(trade_group_selected, month_key, year)
+    sales_target = get_sales_target(trade_group_selected, month_key, year, region=region_filter, trade=trade_filter)
 
     if sales_target > 0:
         sales_target_achievement = (invoice_sales / sales_target) * 100
@@ -1739,6 +1788,9 @@ def compute_kpis(
             float(engineer_satisfaction) if engineer_satisfaction is not None else None
         ),
         "Engineer Survey Count": int(engineer_survey_count),
+        "Satisfaction Form Update %": (
+            float(engineer_survey_count / ops_count * 100) if ops_count and ops_count > 0 else None
+        ),
         "Sales Target": float(sales_target),
         "Sales Target Achievement %": (
             float(sales_target_achievement) if sales_target_achievement is not None else None
@@ -1780,6 +1832,7 @@ def compute_kpis(
             "Average Review Rating": kpis.get(normalise_kpi_name("Average Review Rating")),
             "Review Ratio %": kpis.get(normalise_kpi_name("Review Ratio %")),
             "Engineer Satisfaction %": kpis.get(normalise_kpi_name("Engineer Satisfaction %")),
+            "Satisfaction Form Update %": kpis.get(normalise_kpi_name("Satisfaction Form Update %")),
             "Cases %": kpis.get(normalise_kpi_name("Cases %")),
             "Engineer Retention %": kpis.get(normalise_kpi_name("Engineer Retention %")),
         },
@@ -1804,20 +1857,47 @@ def compute_kpis(
     if not scoring_key:
         scoring_key = trade_group_selected
 
+    # SA Attended regional divisor: thresholds are set for the full group.
+    # When viewing a single region, scale the actual count up by the number of
+    # regions in that phase so it is compared fairly against the full-group target.
+    _phase_region_count = {2: 2, 3: 3}
+    _phase = TRADE_GROUP_PHASE.get(trade_group_selected, 1)
+    _sa_region_multiplier = (
+        _phase_region_count.get(_phase, 1)
+        if region_filter not in (None, "All")
+        else 1
+    )
+
     kpi_scores = {}
     for kpi_name, kpi_value in kpis.items():
         clean_name = normalise_kpi_name(kpi_name)
-        score_result = calculate_kpi_score(clean_name, kpi_value, scoring_key)
+        # FOC Conversion: no FOC/£60 visits this month → full 100 points
+        if clean_name == normalise_kpi_name("FOC Conversion Rate %") and foc_no_visits:
+            kpi_scores[kpi_name] = 100
+            continue
+        # SA Attended: scale value up when viewing a single region so the score
+        # reflects the per-region share of the full-group target.
+        score_value = kpi_value
+        if clean_name == normalise_kpi_name("SA Attended") and _sa_region_multiplier > 1 and kpi_value is not None:
+            score_value = kpi_value * _sa_region_multiplier
+        score_result = calculate_kpi_score(clean_name, score_value, scoring_key)
         if score_result and score_result.get("score") is not None:
             kpi_scores[kpi_name] = score_result["score"]
 
+    # Build a scoring-adjusted kpis dict so category/overall scores also use the scaled SA Attended value
+    kpis_for_scoring = dict(kpis)
+    if _sa_region_multiplier > 1:
+        for k in list(kpis_for_scoring.keys()):
+            if normalise_kpi_name(k) == normalise_kpi_name("SA Attended") and kpis_for_scoring[k] is not None:
+                kpis_for_scoring[k] = kpis_for_scoring[k] * _sa_region_multiplier
+
     category_scores = {}
     for cat in categories:
-        cat_res = get_category_score(cat, kpis, scoring_key)
+        cat_res = get_category_score(cat, kpis_for_scoring, scoring_key)
         category_scores[cat] = cat_res.get("category_score", 0.0) or 0.0
 
     # overall_result scored against the same scoring_key
-    overall_result = get_overall_score(kpis, scoring_key, trade_group_selected, bonus_trade=bonus_trade)
+    overall_result = get_overall_score(kpis_for_scoring, scoring_key, trade_group_selected, bonus_trade=bonus_trade)
     bonus = overall_result.get("bonus", {})
     
     multiplier = bonus.get("multiplier", 0)
@@ -1851,6 +1931,7 @@ def compute_kpis(
         "engineer_satisfaction_avg": engineer_satisfaction,
         "cases_count": cases_count,
         "total_jobs_prev": total_jobs_prev,
+        "satisfaction_form_ops_count": ops_count,
 
         # Productivity Metrics
         "ops_count": ops_count,
@@ -1925,7 +2006,7 @@ GSHEET_ID = "1ehYMcI0Plwup7I11WEnyaP674CSB6_lc8zrrdwa7Kjs"
 GSHEET_CREDS_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), "bonus-dashboard-9e3fb8d8d57d.json")
 GSHEET_WORKSHEET = "Dummy data"
 
-# Maps trade filter (subgroup) name → sheet column prefix
+
 TRADE_TO_SHEET_PREFIX = {
     "Decoration": "Decoration",
     "Gas & HVAC": "Gas and HVAC",
@@ -1936,7 +2017,7 @@ TRADE_TO_SHEET_PREFIX = {
     "Vent Hygiene and Safety": "Vent Hygiene",
 }
 
-# Maps trade GROUP name → sheet column prefix (trade filter is ignored for these)
+
 TRADE_GROUP_TO_SHEET_PREFIX = {
     "Plumbing & Drainage": "Drainage and Plumbing",
     "Leak, Damp & Restoration": "Leak Detection",

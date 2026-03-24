@@ -152,4 +152,19 @@ KPI_DRILLDOWNS = {
             {"key": "total_count", "label": "Current Ops", "color": "neutral"},
         ],
     },
+
+    "Satisfaction Form Update %": {
+        "title": "Satisfaction Forms",
+        "data_source": "satisfaction_form_update",
+        "columns": [
+            {"key": "name",      "label": "Engineer",  "type": "text"},
+            {"key": "trade",     "label": "Trade",     "type": "text"},
+            {"key": "region",    "label": "Region",    "type": "text"},
+            {"key": "submitted", "label": "Submitted", "type": "text"},
+        ],
+        "summary_cards": [
+            {"key": "total_count",     "label": "Total Engineers", "color": "neutral"},
+            {"key": "submitted_count", "label": "Submitted",       "color": "green"},
+        ],
+    },
 }

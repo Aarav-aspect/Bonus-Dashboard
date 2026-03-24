@@ -94,8 +94,8 @@ const PerformanceSummary = ({ overallScore, bonus, liveCollections, liveLabour, 
 
                 {/* Shareholder Card */}
                 <Card
-                    className="relative overflow-hidden bg-brand-blue border-none shadow-md flex flex-col justify-between p-6 rounded-3xl cursor-pointer hover:-translate-y-1 hover:shadow-xl transition-all duration-300 group"
-                    onClick={() => setIsShareholderModalOpen(true)}
+                    className={`relative overflow-hidden bg-brand-blue border-none shadow-md flex flex-col justify-between p-6 rounded-3xl transition-all duration-300 group ${bonus?.bonus_pot_unavailable ? 'cursor-default' : 'cursor-pointer hover:-translate-y-1 hover:shadow-xl'}`}
+                    onClick={() => !bonus?.bonus_pot_unavailable && setIsShareholderModalOpen(true)}
                 >
 
                     <img
@@ -104,41 +104,52 @@ const PerformanceSummary = ({ overallScore, bonus, liveCollections, liveLabour, 
                         className="absolute opacity-10 rotate-12 transition-transform duration-500 group-hover:scale-110 pointer-events-none select-none"
                         style={{ right: '-50px', top: '-20px', width: '260px', height: '260px' }}
                     />
-                    <div className="relative z-10 flex gap-4 items-start">
-                        {/* Current Bonus */}
-                        <div className="flex-1">
-                            <div className="text-sm text-white/80 font-bold uppercase tracking-wider">
-                                Current Bonus
-                            </div>
-                            <div className="text-4xl font-black my-3 text-white tracking-tight group-hover:scale-[1.02] transition-transform origin-left">
-                                £{shareholderCurrent.toLocaleString(undefined, { maximumFractionDigits: 0 })}
+                    {bonus?.bonus_pot_unavailable ? (
+                        <div className="relative z-10 flex flex-col justify-center items-center h-full py-6 text-center">
+                            <div className="text-white/60 font-bold uppercase tracking-wider text-sm mb-3">Bonus Pot</div>
+                            <div className="text-white font-black text-xl">
+                                Not available for {bonus.bonus_pot_unavailable}
                             </div>
                         </div>
+                    ) : (
+                        <>
+                            <div className="relative z-10 flex gap-4 items-start">
+                                {/* Current Bonus */}
+                                <div className="flex-1">
+                                    <div className="text-sm text-white/80 font-bold uppercase tracking-wider">
+                                        Current Bonus
+                                    </div>
+                                    <div className="text-4xl font-black my-3 text-white tracking-tight group-hover:scale-[1.02] transition-transform origin-left">
+                                        £{shareholderCurrent.toLocaleString(undefined, { maximumFractionDigits: 0 })}
+                                    </div>
+                                </div>
 
-                        {/* Divider */}
-                        <div className="w-px self-stretch bg-white/15 mx-1" />
+                                {/* Divider */}
+                                <div className="w-px self-stretch bg-white/15 mx-1" />
 
-                        {/* Max Bonus */}
-                        <div className="flex-1">
-                            <div className="text-sm text-white/80 font-bold uppercase tracking-wider">
-                                Max Bonus
+                                {/* Max Bonus */}
+                                <div className="flex-1">
+                                    <div className="text-sm text-white/80 font-bold uppercase tracking-wider">
+                                        Max Bonus
+                                    </div>
+                                    <div className="text-4xl font-black my-3 text-brand-yellow tracking-tight group-hover:scale-[1.02] transition-transform origin-left">
+                                        £{shareholderMax.toLocaleString(undefined, { maximumFractionDigits: 0 })}
+                                    </div>
+                                </div>
                             </div>
-                            <div className="text-4xl font-black my-3 text-brand-yellow tracking-tight group-hover:scale-[1.02] transition-transform origin-left">
-                                £{shareholderMax.toLocaleString(undefined, { maximumFractionDigits: 0 })}
-                            </div>
-                        </div>
-                    </div>
 
-                    <div className="relative z-10 border-t border-white/15 pt-5 mt-auto">
-                        <div className="flex justify-between text-sm text-white mb-2 opacity-90">
-                            <span className="font-medium">Base Pot</span>
-                            <strong className="font-bold">£{shareholderBasePot.toLocaleString(undefined, { maximumFractionDigits: 0 })}</strong>
-                        </div>
-                        <div className="flex justify-between text-sm text-brand-yellow">
-                            <span className="font-bold">Adjustment</span>
-                            <strong className="font-black">{bonus?.multiplier > 0 ? '+' : ''}{(bonus?.multiplier * 100).toFixed(0)}%</strong>
-                        </div>
-                    </div>
+                            <div className="relative z-10 border-t border-white/15 pt-5 mt-auto">
+                                <div className="flex justify-between text-sm text-white mb-2 opacity-90">
+                                    <span className="font-medium">Base Pot</span>
+                                    <strong className="font-bold">£{shareholderBasePot.toLocaleString(undefined, { maximumFractionDigits: 0 })}</strong>
+                                </div>
+                                <div className="flex justify-between text-sm text-brand-yellow">
+                                    <span className="font-bold">Adjustment</span>
+                                    <strong className="font-black">{bonus?.multiplier > 0 ? '+' : ''}{(bonus?.multiplier * 100).toFixed(0)}%</strong>
+                                </div>
+                            </div>
+                        </>
+                    )}
                 </Card>
             </div>
 

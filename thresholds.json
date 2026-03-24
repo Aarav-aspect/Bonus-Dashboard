@@ -1,350 +1,221 @@
 {
   "kpis": {
-    "Estimate Conversion %": {
-      "direction": "higher_is_better",
-      "thresholds": [
-        {
-          "min": 60,
-          "score": 100
-        },
-        {
-          "min": 57.5,
-          "score": 90
-        },
-        {
-          "min": 55,
-          "score": 80
-        },
-        {
-          "min": 52.5,
-          "score": 70
-        },
-        {
-          "min": 50,
-          "score": 60
-        },
-        {
-          "min": 47.5,
-          "score": 50
-        },
-        {
-          "min": 45,
-          "score": 40
-        },
-        {
-          "min": 42.5,
-          "score": 30
-        },
-        {
-          "min": 40,
-          "score": 20
-        },
-        {
-          "min": 37.5,
-          "score": 10
-        },
-        {
-          "min": 35,
-          "score": 0
-        }
-      ]
-    },
-    "FOC Conversion Rate %": {
-      "direction": "higher_is_better",
-      "thresholds": [
-        {
-          "min": 70,
-          "score": 100
-        },
-        {
-          "min": 67.5,
-          "score": 90
-        },
-        {
-          "min": 65,
-          "score": 80
-        },
-        {
-          "min": 62.5,
-          "score": 70
-        },
-        {
-          "min": 60,
-          "score": 60
-        },
-        {
-          "min": 57.5,
-          "score": 50
-        },
-        {
-          "min": 55,
-          "score": 40
-        },
-        {
-          "min": 52.5,
-          "score": 30
-        },
-        {
-          "min": 50,
-          "score": 20
-        },
-        {
-          "min": 47.5,
-          "score": 10
-        },
-        {
-          "min": 45,
-          "score": 0
-        }
-      ]
-    },
-    "Estimate Production / Reactive Leads %": {
-      "direction": "higher_is_better",
-      "thresholds": [
-        {
-          "min": 38,
-          "score": 100
-        },
-        {
-          "min": 35.5,
-          "score": 90
-        },
-        {
-          "min": 33,
-          "score": 80
-        },
-        {
-          "min": 30.5,
-          "score": 70
-        },
-        {
-          "min": 28,
-          "score": 60
-        },
-        {
-          "min": 25.5,
-          "score": 50
-        },
-        {
-          "min": 23,
-          "score": 40
-        },
-        {
-          "min": 20.5,
-          "score": 30
-        },
-        {
-          "min": 18,
-          "score": 20
-        },
-        {
-          "min": 15.5,
-          "score": 10
-        },
-        {
-          "min": 13,
-          "score": 0
-        }
-      ]
-    },
-    "Reactive 6+ hours %": {
+    "Cases %": {
       "direction": "lower_is_better",
       "thresholds": [
+        {
+          "max": 1,
+          "score": 100
+        },
+        {
+          "max": 2,
+          "score": 90
+        },
+        {
+          "max": 3,
+          "score": 80
+        },
+        {
+          "max": 4,
+          "score": 70
+        },
         {
           "max": 5,
-          "score": 100
-        },
-        {
-          "max": 7.5,
-          "score": 90
-        },
-        {
-          "max": 10,
-          "score": 80
-        },
-        {
-          "max": 12.5,
-          "score": 70
-        },
-        {
-          "max": 15,
           "score": 60
         },
         {
-          "max": 17.5,
+          "max": 6,
           "score": 50
         },
         {
-          "max": 20,
-          "score": 40
-        },
-        {
-          "max": 22.5,
-          "score": 30
-        },
-        {
-          "max": 25,
-          "score": 20
-        },
-        {
-          "max": 27.5,
-          "score": 10
-        },
-        {
           "max": 100,
-          "score": 0
-        }
-      ]
-    },
-    "Late to Site %": {
-      "direction": "lower_is_better",
-      "thresholds": [
-        {
-          "max": 0,
-          "score": 100
-        },
-        {
-          "max": 10,
-          "score": 90
-        },
-        {
-          "max": 20,
-          "score": 80
-        },
-        {
-          "max": 30,
-          "score": 70
-        },
-        {
-          "max": 40,
-          "score": 60
-        },
-        {
-          "max": 50,
-          "score": 50
-        },
-        {
-          "max": 60,
-          "score": 40
-        },
-        {
-          "max": 70,
-          "score": 30
-        },
-        {
-          "max": 100,
-          "score": 0
-        }
-      ]
-    },
-    "Average Review Rating": {
-      "direction": "higher_is_better",
-      "thresholds": [
-        {
-          "min": 5,
-          "score": 100
-        },
-        {
-          "min": 4.75,
-          "score": 90
-        },
-        {
-          "min": 4.5,
-          "score": 80
-        },
-        {
-          "min": 4.25,
-          "score": 70
-        },
-        {
-          "min": 4,
-          "score": 60
-        },
-        {
           "min": 0,
           "score": 0
         }
       ]
     },
-    "Review Ratio %": {
+    "Ops Count %": {
       "direction": "higher_is_better",
       "thresholds": [
         {
-          "min": 7.5,
+          "min": 110,
           "score": 100
         },
         {
-          "min": 6.5,
+          "min": 105,
           "score": 90
         },
         {
-          "min": 5.5,
+          "min": 100,
           "score": 80
         },
         {
-          "min": 4.5,
+          "min": 95,
           "score": 70
         },
-        {
-          "min": 3.5,
-          "score": 60
-        },
-        {
-          "min": 2.5,
-          "score": 50
-        },
-        {
-          "min": 0,
-          "score": 0
-        }
-      ]
-    },
-    "Engineer Satisfaction %": {
-      "direction": "higher_is_better",
-      "thresholds": [
         {
           "min": 90,
-          "score": 100
+          "score": 60
         },
         {
           "min": 80,
-          "score": 90
-        },
-        {
-          "min": 70,
-          "score": 80
-        },
-        {
-          "min": 60,
-          "score": 70
-        },
-        {
-          "min": 50,
-          "score": 60
-        },
-        {
-          "min": 40,
           "score": 50
         },
         {
-          "min": 30,
+          "max": 0,
+          "min": 70,
           "score": 40
         },
         {
-          "min": 20,
+          "max": 0,
+          "min": 60,
           "score": 30
         },
         {
-          "min": 10,
-          "score": 20
-        },
-        {
+          "max": 0,
           "min": 0,
-          "score": 10
+          "score": 0
         }
       ]
     },
-    "Engineer Retention %": {
+    "SA Attended": {
+      "dynamic": {
+        "type": "trade_based",
+        "scores": [
+          100.0,
+          90.0,
+          80.0,
+          70.0,
+          60.0,
+          50.0,
+          0.0
+        ],
+        "thresholds_by_trade": {
+          "HVAC": [
+            300,
+            290,
+            280,
+            270,
+            260,
+            250,
+            0
+          ],
+          "Roofing": [
+            200,
+            190,
+            180,
+            170,
+            160,
+            150
+          ],
+          "Drainage": [
+            800,
+            770,
+            740,
+            710,
+            680,
+            150
+          ],
+          "Plumbing": [
+            150,
+            140,
+            130,
+            120,
+            110,
+            100,
+            90,
+            80,
+            70,
+            60
+          ],
+          "Decoration": [
+            200.0,
+            190.0,
+            180.0,
+            170.0,
+            160.0,
+            150.0
+          ],
+          "Electrical": [
+            160,
+            150,
+            140,
+            130,
+            120,
+            110,
+            0
+          ],
+          "Fire Safety": [
+            250,
+            230,
+            210,
+            190,
+            170,
+            150
+          ],
+          "Multi Trades": [
+            200.0,
+            190.0,
+            180.0,
+            170.0,
+            160.0,
+            150.0
+          ],
+          "Leak Detection": [
+            1000,
+            960,
+            920,
+            880,
+            840,
+            800,
+            700,
+            600,
+            500,
+            400
+          ],
+          "Building Fabric": [
+            600.0,
+            570.0,
+            540.0,
+            510.0,
+            480.0,
+            450.0,
+            0.0
+          ],
+          "HVac & Electrical": [
+            460,
+            440,
+            420,
+            400,
+            380,
+            360,
+            0
+          ],
+          "Plumbing & Drainage": [
+            1200,
+            1150,
+            1100,
+            1050,
+            1000,
+            430
+          ],
+          "Leak, Damp & Restoration": [
+            1050,
+            1005,
+            960,
+            915,
+            870,
+            825,
+            720,
+            615,
+            510,
+            405
+          ]
+        }
+      },
+      "direction": "higher_is_better"
+    },
+    "TQR Ratio %": {
       "direction": "higher_is_better",
       "thresholds": [
         {
@@ -364,118 +235,16 @@
           "score": 70
         },
         {
-          "min": 70,
-          "score": 60
-        },
-        {
           "min": 65,
-          "score": 50
-        },
-        {
-          "min": 60,
-          "score": 40
-        },
-        {
-          "min": 55,
-          "score": 30
-        },
-        {
-          "min": 50,
-          "score": 20
-        },
-        {
-          "min": 45,
-          "score": 10
-        },
-        {
-          "min": 0,
-          "score": 0
-        }
-      ]
-    },
-    "Average Driving Score": {
-      "direction": "higher_is_better",
-      "thresholds": [
-        {
-          "min": 9,
-          "score": 100
-        },
-        {
-          "min": 8.5,
-          "score": 90
-        },
-        {
-          "min": 8,
-          "score": 80
-        },
-        {
-          "min": 7.5,
-          "score": 70
-        },
-        {
-          "min": 7,
           "score": 60
         },
         {
-          "min": 6.5,
-          "score": 50
-        },
-        {
-          "min": 6,
-          "score": 40
-        },
-        {
-          "min": 0,
-          "score": 0
-        },
-        {
-          "min": 0,
-          "score": 0
-        },
-        {
-          "min": 0,
-          "score": 0
-        },
-        {
           "min": 0,
           "score": 0
         }
       ]
     },
-    "Drivers with <7": {
-      "direction": "lower_is_better",
-      "thresholds": [
-        {
-          "max": 25,
-          "score": 100
-        },
-        {
-          "max": 30,
-          "score": 90
-        },
-        {
-          "max": 35,
-          "score": 80
-        },
-        {
-          "max": 40,
-          "score": 70
-        },
-        {
-          "max": 45,
-          "score": 60
-        },
-        {
-          "max": 50,
-          "score": 50
-        },
-        {
-          "max": 100,
-          "score": 0
-        }
-      ]
-    },
-    "Sales Target Achievement %": {
+    "VCR Update %": {
       "direction": "higher_is_better",
       "thresholds": [
         {
@@ -483,24 +252,40 @@
           "score": 100
         },
         {
-          "min": 95,
+          "min": 90,
           "score": 90
         },
         {
-          "min": 90,
+          "min": 80,
           "score": 80
         },
         {
-          "min": 85,
+          "min": 70,
           "score": 70
         },
         {
-          "min": 80,
+          "min": 60,
           "score": 60
         },
         {
-          "min": 75,
+          "min": 50,
           "score": 50
+        },
+        {
+          "min": 40,
+          "score": 40
+        },
+        {
+          "min": 30,
+          "score": 30
+        },
+        {
+          "min": 20,
+          "score": 20
+        },
+        {
+          "min": 10,
+          "score": 10
         },
         {
           "min": 0,
@@ -606,99 +391,7 @@
         }
       ]
     },
-    "Cases %": {
-      "direction": "lower_is_better",
-      "thresholds": [
-        {
-          "max": 1,
-          "score": 100
-        },
-        {
-          "max": 2,
-          "score": 90
-        },
-        {
-          "max": 3,
-          "score": 80
-        },
-        {
-          "max": 4,
-          "score": 70
-        },
-        {
-          "max": 5,
-          "score": 60
-        },
-        {
-          "max": 6,
-          "score": 50
-        },
-        {
-          "min": 0,
-          "max": 100,
-          "score": 0
-        }
-      ]
-    },
-    "Ops Count %": {
-      "direction": "higher_is_better",
-      "thresholds": [
-        {
-          "min": 110,
-          "score": 100
-        },
-        {
-          "min": 105,
-          "score": 90
-        },
-        {
-          "min": 100,
-          "score": 80
-        },
-        {
-          "min": 95,
-          "score": 70
-        },
-        {
-          "min": 90,
-          "score": 60
-        },
-        {
-          "min": 0,
-          "score": 0
-        }
-      ]
-    },
-    "TQR Ratio %": {
-      "direction": "higher_is_better",
-      "thresholds": [
-        {
-          "min": 90,
-          "score": 100
-        },
-        {
-          "min": 85,
-          "score": 90
-        },
-        {
-          "min": 80,
-          "score": 80
-        },
-        {
-          "min": 75,
-          "score": 70
-        },
-        {
-          "min": 65,
-          "score": 60
-        },
-        {
-          "min": 0,
-          "score": 0
-        }
-      ]
-    },
-    "TQR (Not Satisfied) Ratio %": {
+    "Late to Site %": {
       "direction": "lower_is_better",
       "thresholds": [
         {
@@ -706,31 +399,68 @@
           "score": 100
         },
         {
-          "max": 2.5,
+          "max": 10,
           "score": 90
         },
         {
-          "max": 5,
+          "max": 20,
           "score": 80
         },
         {
-          "max": 7.5,
+          "max": 30,
           "score": 70
         },
         {
-          "max": 10,
+          "max": 40,
           "score": 60
         },
         {
-          "max": 12.5,
+          "max": 50,
           "score": 50
         },
         {
-          "max": 15,
+          "max": 60,
           "score": 40
         },
         {
+          "max": 70,
+          "score": 30
+        },
+        {
           "max": 100,
+          "score": 0
+        }
+      ]
+    },
+    "Review Ratio %": {
+      "direction": "higher_is_better",
+      "thresholds": [
+        {
+          "min": 7.5,
+          "score": 100
+        },
+        {
+          "min": 6.5,
+          "score": 90
+        },
+        {
+          "min": 5.5,
+          "score": 80
+        },
+        {
+          "min": 4.5,
+          "score": 70
+        },
+        {
+          "min": 3.5,
+          "score": 60
+        },
+        {
+          "min": 2.5,
+          "score": 50
+        },
+        {
+          "min": 0,
           "score": 0
         }
       ]
@@ -784,339 +514,38 @@
         }
       ]
     },
-    "VCR Update %": {
-      "direction": "higher_is_better",
+    "Drivers with <7": {
+      "direction": "lower_is_better",
       "thresholds": [
         {
-          "min": 100,
+          "max": 25,
           "score": 100
         },
         {
-          "min": 90,
+          "max": 30,
           "score": 90
         },
         {
-          "min": 80,
+          "max": 35,
           "score": 80
         },
         {
-          "min": 70,
+          "max": 40,
           "score": 70
         },
         {
-          "min": 60,
+          "max": 45,
           "score": 60
         },
         {
-          "min": 50,
+          "max": 50,
           "score": 50
         },
         {
-          "min": 40,
-          "score": 40
-        },
-        {
-          "min": 30,
-          "score": 30
-        },
-        {
-          "min": 20,
-          "score": 20
-        },
-        {
-          "min": 10,
-          "score": 10
-        },
-        {
-          "min": 0,
+          "max": 100,
           "score": 0
         }
       ]
-    },
-    "Average Site Value (\u00a3)": {
-      "direction": "higher_is_better",
-      "dynamic": {
-        "type": "trade_based",
-        "scores": [
-          100.0,
-          90.0,
-          80.0,
-          70.0,
-          60.0,
-          50.0,
-          40.0,
-          30.0,
-          20.0,
-          10.0
-        ],
-        "thresholds_by_trade": {
-          "HVAC": [
-            1000.0,
-            0.0,
-            0.0,
-            0.0,
-            0.0,
-            0.0,
-            0.0,
-            0.0,
-            0.0,
-            0.0
-          ],
-          "Electrical": [
-            1000.0,
-            0.0,
-            0.0,
-            0.0,
-            0.0,
-            0.0,
-            0.0,
-            0.0,
-            0.0,
-            0.0
-          ],
-          "Plumbing": [
-            1000.0,
-            0.0,
-            0.0,
-            0.0,
-            0.0,
-            0.0,
-            0.0,
-            0.0,
-            0.0,
-            0.0
-          ],
-          "HVac & Electrical": [
-            1000.0,
-            0.0,
-            0.0,
-            0.0,
-            0.0,
-            0.0,
-            0.0,
-            0.0,
-            0.0,
-            0.0
-          ],
-          "Leak, Damp & Restoration": [
-            1000.0,
-            0.0,
-            0.0,
-            0.0,
-            0.0,
-            0.0,
-            0.0,
-            0.0,
-            0.0,
-            0.0
-          ],
-          "Plumbing & Drainage": [
-            4100.0,
-            0.0,
-            0.0,
-            0.0,
-            0.0,
-            0.0,
-            0.0,
-            0.0,
-            0.0,
-            0.0
-          ],
-          "Drainage": [
-            1100.0,
-            1000.0,
-            900.0,
-            800.0,
-            700.0,
-            600.0,
-            0.0
-          ]
-        }
-      }
-    },
-    "SA Attended": {
-      "direction": "higher_is_better",
-      "dynamic": {
-        "type": "trade_based",
-        "scores": [
-          100,
-          90,
-          80,
-          70,
-          60,
-          50,
-          40,
-          30,
-          20,
-          10
-        ],
-        "thresholds_by_trade": {
-          "HVAC": [
-            300,
-            290,
-            280,
-            270,
-            260,
-            250,
-            240,
-            230,
-            220,
-            210
-          ],
-          "Electrical": [
-            160,
-            150,
-            140,
-            130,
-            120,
-            110,
-            100,
-            90,
-            80,
-            70
-          ],
-          "Plumbing": [
-            150,
-            140,
-            130,
-            120,
-            110,
-            100,
-            90,
-            80,
-            70,
-            60
-          ],
-          "HVac & Electrical": [
-            950,
-            850,
-            750,
-            650,
-            600,
-            550,
-            450,
-            400,
-            350,
-            300
-          ],
-          "Leak, Damp & Restoration": [
-            900,
-            850,
-            800,
-            750,
-            700,
-            650,
-            600,
-            550,
-            500,
-            450
-          ],
-          "Plumbing & Drainage": [
-            1500,
-            1400,
-            1300,
-            1200,
-            1100,
-            1000,
-            0,
-            0,
-            0,
-            0
-          ]
-        }
-      }
-    },
-    "Average Converted Estimate Value (\u00a3)": {
-      "direction": "higher_is_better",
-      "dynamic": {
-        "type": "trade_based",
-        "scores": [
-          100,
-          90,
-          80,
-          70,
-          60,
-          50,
-          40,
-          30,
-          20,
-          10
-        ],
-        "thresholds_by_trade": {
-          "HVAC": [
-            950,
-            900,
-            850,
-            800,
-            750,
-            700,
-            650,
-            600,
-            550,
-            500
-          ],
-          "Electrical": [
-            800,
-            750,
-            700,
-            650,
-            600,
-            550,
-            500,
-            450,
-            400,
-            350
-          ],
-          "Plumbing": [
-            900,
-            850,
-            800,
-            750,
-            700,
-            650,
-            600,
-            550,
-            500,
-            450
-          ],
-          "HVac & Electrical": [
-            1100,
-            1050,
-            1000,
-            950,
-            900,
-            850,
-            800,
-            750,
-            700,
-            650
-          ],
-          "Leak, Damp & Restoration": [
-            1000,
-            950,
-            900,
-            850,
-            800,
-            750,
-            700,
-            650,
-            600,
-            550
-          ],
-          "Plumbing & Drainage": [
-            1400,
-            1300,
-            1200,
-            1100,
-            1000,
-            900,
-            800,
-            0,
-            0,
-            0
-          ]
-        }
-      }
     },
     "Conversion Rate (%)": {
       "direction": "higher_is_better",
@@ -1167,6 +596,280 @@
         }
       ]
     },
+    "Reactive 6+ hours %": {
+      "direction": "lower_is_better",
+      "thresholds": [
+        {
+          "max": 12.5,
+          "score": 100
+        },
+        {
+          "max": 15,
+          "score": 90
+        },
+        {
+          "max": 17.5,
+          "score": 80
+        },
+        {
+          "max": 20,
+          "score": 70
+        },
+        {
+          "max": 22.5,
+          "score": 60
+        },
+        {
+          "max": 25,
+          "score": 50
+        },
+        {
+          "max": 27.5,
+          "score": 40
+        },
+        {
+          "max": 30,
+          "score": 30
+        },
+        {
+          "max": 32.5,
+          "score": 20
+        },
+        {
+          "max": 35,
+          "score": 10
+        },
+        {
+          "max": 100,
+          "score": 0
+        }
+      ]
+    },
+    "Engineer Retention %": {
+      "direction": "higher_is_better",
+      "thresholds": [
+        {
+          "min": 90,
+          "score": 100
+        },
+        {
+          "min": 85,
+          "score": 90
+        },
+        {
+          "min": 80,
+          "score": 80
+        },
+        {
+          "min": 75,
+          "score": 70
+        },
+        {
+          "min": 70,
+          "score": 60
+        },
+        {
+          "min": 65,
+          "score": 50
+        },
+        {
+          "min": 60,
+          "score": 40
+        },
+        {
+          "min": 55,
+          "score": 30
+        },
+        {
+          "min": 50,
+          "score": 20
+        },
+        {
+          "min": 45,
+          "score": 10
+        },
+        {
+          "min": 0,
+          "score": 0
+        }
+      ]
+    },
+    "Average Driving Score": {
+      "direction": "higher_is_better",
+      "thresholds": [
+        {
+          "min": 9,
+          "score": 100
+        },
+        {
+          "min": 8.5,
+          "score": 90
+        },
+        {
+          "min": 8,
+          "score": 80
+        },
+        {
+          "min": 7.5,
+          "score": 70
+        },
+        {
+          "min": 7,
+          "score": 60
+        },
+        {
+          "min": 6.5,
+          "score": 50
+        },
+        {
+          "min": 6,
+          "score": 40
+        },
+        {
+          "min": 0,
+          "score": 0
+        },
+        {
+          "min": 0,
+          "score": 0
+        },
+        {
+          "min": 0,
+          "score": 0
+        },
+        {
+          "min": 0,
+          "score": 0
+        }
+      ]
+    },
+    "Average Review Rating": {
+      "direction": "higher_is_better",
+      "thresholds": [
+        {
+          "min": 5,
+          "score": 100
+        },
+        {
+          "min": 4.75,
+          "score": 90
+        },
+        {
+          "min": 4.5,
+          "score": 80
+        },
+        {
+          "min": 4.25,
+          "score": 70
+        },
+        {
+          "min": 4,
+          "score": 60
+        },
+        {
+          "min": 0,
+          "score": 0
+        }
+      ]
+    },
+    "Estimate Conversion %": {
+      "direction": "higher_is_better",
+      "thresholds": [
+        {
+          "min": 60,
+          "score": 100
+        },
+        {
+          "min": 57.5,
+          "score": 90
+        },
+        {
+          "min": 55,
+          "score": 80
+        },
+        {
+          "min": 52.5,
+          "score": 70
+        },
+        {
+          "min": 50,
+          "score": 60
+        },
+        {
+          "min": 47.5,
+          "score": 50
+        },
+        {
+          "min": 45,
+          "score": 40
+        },
+        {
+          "min": 42.5,
+          "score": 30
+        },
+        {
+          "min": 40,
+          "score": 20
+        },
+        {
+          "min": 37.5,
+          "score": 10
+        },
+        {
+          "min": null,
+          "score": 0
+        }
+      ]
+    },
+    "FOC Conversion Rate %": {
+      "direction": "higher_is_better",
+      "thresholds": [
+        {
+          "min": 70,
+          "score": 100
+        },
+        {
+          "min": 67.5,
+          "score": 90
+        },
+        {
+          "min": 65,
+          "score": 80
+        },
+        {
+          "min": 62.5,
+          "score": 70
+        },
+        {
+          "min": 60,
+          "score": 60
+        },
+        {
+          "min": 57.5,
+          "score": 50
+        },
+        {
+          "min": 55,
+          "score": 40
+        },
+        {
+          "min": 52.5,
+          "score": 30
+        },
+        {
+          "min": 50,
+          "score": 20
+        },
+        {
+          "min": 47.5,
+          "score": 10
+        },
+        {
+          "min": null,
+          "score": 0
+        }
+      ]
+    },
     "Reactive 6+ Hours (%)": {
       "direction": "lower_is_better",
       "thresholds": [
@@ -1212,6 +915,431 @@
         },
         {
           "max": 20,
+          "score": 0
+        }
+      ]
+    },
+    "Average Site Value (\u00a3)": {
+      "dynamic": {
+        "type": "trade_based",
+        "scores": [
+          100,
+          90,
+          80,
+          70,
+          60,
+          50,
+          40,
+          30,
+          20,
+          10
+        ],
+        "thresholds_by_trade": {
+          "Damp": [
+            200,
+            180,
+            160,
+            140,
+            120,
+            0
+          ],
+          "HVAC": [
+            1000,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          "Drainage": [
+            1100,
+            1000,
+            900,
+            800,
+            700,
+            600,
+            0
+          ],
+          "Plumbing": [
+            1000,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          "Electrical": [
+            1000,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          "Leak Detection": [
+            700,
+            650,
+            600,
+            550,
+            497,
+            0
+          ],
+          "HVac & Electrical": [
+            1000,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          "Plumbing & Drainage": [
+            4100,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          "Leak, Damp & Restoration": [
+            900,
+            830,
+            760,
+            690,
+            617,
+            0
+          ]
+        }
+      },
+      "direction": "higher_is_better"
+    },
+    "Engineer Satisfaction %": {
+      "direction": "higher_is_better",
+      "thresholds": [
+        {
+          "min": 90,
+          "score": 100
+        },
+        {
+          "min": 80,
+          "score": 90
+        },
+        {
+          "min": 70,
+          "score": 80
+        },
+        {
+          "min": 60,
+          "score": 70
+        },
+        {
+          "min": 50,
+          "score": 60
+        },
+        {
+          "min": 40,
+          "score": 50
+        },
+        {
+          "min": 30,
+          "score": 40
+        },
+        {
+          "min": 20,
+          "score": 30
+        },
+        {
+          "min": 10,
+          "score": 20
+        },
+        {
+          "min": 0,
+          "score": 10
+        }
+      ]
+    },
+    "Sales Target Achievement %": {
+      "direction": "higher_is_better",
+      "thresholds": [
+        {
+          "min": 100,
+          "score": 100
+        },
+        {
+          "min": 95,
+          "score": 90
+        },
+        {
+          "min": 90,
+          "score": 80
+        },
+        {
+          "min": 85,
+          "score": 70
+        },
+        {
+          "min": 80,
+          "score": 60
+        },
+        {
+          "min": 75,
+          "score": 50
+        },
+        {
+          "min": 0,
+          "score": 0
+        }
+      ]
+    },
+    "Satisfaction Form Update %": {
+      "direction": "higher_is_better",
+      "thresholds": [
+        {
+          "min": 100,
+          "score": 100
+        },
+        {
+          "min": 90,
+          "score": 90
+        },
+        {
+          "min": 80,
+          "score": 80
+        },
+        {
+          "min": 70,
+          "score": 70
+        },
+        {
+          "min": 60,
+          "score": 60
+        },
+        {
+          "min": 50,
+          "score": 50
+        },
+        {
+          "min": 40,
+          "score": 40
+        },
+        {
+          "min": 30,
+          "score": 30
+        },
+        {
+          "min": 20,
+          "score": 20
+        },
+        {
+          "min": 10,
+          "score": 10
+        },
+        {
+          "min": 0,
+          "score": 0
+        }
+      ]
+    },
+    "TQR (Not Satisfied) Ratio %": {
+      "direction": "lower_is_better",
+      "thresholds": [
+        {
+          "max": 0,
+          "score": 100
+        },
+        {
+          "max": 2.5,
+          "score": 90
+        },
+        {
+          "max": 5,
+          "score": 80
+        },
+        {
+          "max": 7.5,
+          "score": 70
+        },
+        {
+          "max": 10,
+          "score": 60
+        },
+        {
+          "max": 12.5,
+          "score": 50
+        },
+        {
+          "max": 15,
+          "score": 40
+        },
+        {
+          "max": 100,
+          "score": 0
+        }
+      ]
+    },
+    "Average Converted Estimate Value (\u00a3)": {
+      "dynamic": {
+        "type": "trade_based",
+        "scores": [
+          100,
+          90,
+          80,
+          70,
+          60,
+          50,
+          40,
+          30,
+          20,
+          10,
+          0
+        ],
+        "thresholds_by_trade": {
+          "HVAC": [
+            950,
+            900,
+            850,
+            800,
+            750,
+            700,
+            650,
+            600,
+            550,
+            500,
+            0
+          ],
+          "Plumbing": [
+            950,
+            900,
+            850,
+            800,
+            750,
+            700,
+            650,
+            600,
+            550,
+            500,
+            0
+          ],
+          "Electrical": [
+            950,
+            900,
+            850,
+            800,
+            750,
+            700,
+            650,
+            600,
+            550,
+            500,
+            0
+          ],
+          "HVac & Electrical": [
+            950,
+            900,
+            850,
+            800,
+            750,
+            700,
+            650,
+            600,
+            550,
+            500,
+            0
+          ],
+          "Plumbing & Drainage": [
+            950,
+            900,
+            850,
+            800,
+            750,
+            700,
+            650,
+            600,
+            550,
+            500,
+            0
+          ],
+          "Leak, Damp & Restoration": [
+            950,
+            900,
+            850,
+            800,
+            750,
+            700,
+            650,
+            600,
+            550,
+            500,
+            0
+          ]
+        }
+      },
+      "direction": "higher_is_better"
+    },
+    "Estimate Production / Reactive Leads %": {
+      "direction": "higher_is_better",
+      "thresholds": [
+        {
+          "min": 38,
+          "score": 100
+        },
+        {
+          "min": 35.5,
+          "score": 90
+        },
+        {
+          "min": 33,
+          "score": 80
+        },
+        {
+          "min": 30.5,
+          "score": 70
+        },
+        {
+          "min": 28,
+          "score": 60
+        },
+        {
+          "min": 25.5,
+          "score": 50
+        },
+        {
+          "min": 23,
+          "score": 40
+        },
+        {
+          "min": 20.5,
+          "score": 30
+        },
+        {
+          "min": 18,
+          "score": 20
+        },
+        {
+          "min": 15.5,
+          "score": 10
+        },
+        {
+          "min": null,
           "score": 0
         }
       ]

@@ -14,25 +14,6 @@ const Login = () => {
         window.location.href = "/api/auth/signin/microsoft";
     };
 
-    const handleDevLogin = async (role, group = null, trade = null, region = null) => {
-        try {
-            await fetch("/api/auth/dev/login", {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                credentials: "include",
-                body: JSON.stringify({
-                    role,
-                    assigned_group: group,
-                    assigned_trade: trade,
-                    assigned_region: region,
-                }),
-            });
-            window.location.href = "/dashboard";
-        } catch (err) {
-            alert("Dev login failed: " + err.message);
-        }
-    };
-
     return (
         <div
             className="min-h-screen w-full flex items-center justify-center bg-cover bg-center bg-no-repeat relative overflow-hidden font-sans"
@@ -69,45 +50,6 @@ const Login = () => {
                             </span>
                         </button>
 
-                    </div>
-
-                    {/* Developer Login */}
-                    <div className="mt-6 w-full border-t border-slate-100 pt-4">
-                        <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wider text-center mb-3">
-                            Test Roles (Dev)
-                        </h3>
-                        <div className="grid grid-cols-2 gap-2">
-                            <button
-                                onClick={() => handleDevLogin("admin")}
-                                className="px-3 py-2 text-[10px] font-bold text-slate-600 bg-slate-50 hover:bg-slate-100 border border-slate-200 rounded transition-colors"
-                            >
-                                Admin
-                            </button>
-                            <button
-                                onClick={() => handleDevLogin("trade_group_manager", "HVac & Electrical")}
-                                className="px-3 py-2 text-[10px] font-bold text-slate-600 bg-slate-50 hover:bg-slate-100 border border-slate-200 rounded transition-colors"
-                            >
-                                TGM (HVAC)
-                            </button>
-                            <button
-                                onClick={() => handleDevLogin("trade_group_manager", "Plumbing & Drainage")}
-                                className="px-3 py-2 text-[10px] font-bold text-slate-600 bg-slate-50 hover:bg-slate-100 border border-slate-200 rounded transition-colors"
-                            >
-                                TGM (P&D)
-                            </button>
-                            <button
-                                onClick={() => handleDevLogin("regional_trade_group_manager", "Plumbing & Drainage", null, "North West")}
-                                className="px-3 py-2 text-[10px] font-bold text-slate-600 bg-slate-50 hover:bg-slate-100 border border-slate-200 rounded transition-colors"
-                            >
-                                TGM (P&D, NW)
-                            </button>
-                            <button
-                                onClick={() => handleDevLogin("trade_manager", "HVac & Electrical", "Electrical")}
-                                className="px-3 py-2 text-[10px] font-bold text-slate-600 bg-slate-50 hover:bg-slate-100 border border-slate-200 rounded transition-colors"
-                            >
-                                TM (Electrical)
-                            </button>
-                        </div>
                     </div>
 
                     {/* Branding Footer */}

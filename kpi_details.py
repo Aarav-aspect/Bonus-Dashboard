@@ -240,7 +240,18 @@ def enrich_kpis(kpis, raw_metrics):
             "denominator_label": "Total Reactive Jobs",
         }
 
-    # 22. Engineer Retention %
+    # 22. Satisfaction Form Update %
+    if "Satisfaction Form Update %" in enriched:
+        val = enriched["Satisfaction Form Update %"]
+        enriched["Satisfaction Form Update %"] = {
+            "value": val,
+            "numerator": raw_metrics.get("engineer_survey_count", 0),
+            "denominator": raw_metrics.get("satisfaction_form_ops_count", 0),
+            "numerator_label": "Forms Submitted",
+            "denominator_label": "Engineers in Trade Group (Ops × 1)",
+        }
+
+    # 23. Engineer Retention %
     if "Engineer Retention %" in enriched:
         val = enriched["Engineer Retention %"]
         enriched["Engineer Retention %"] = {

@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { fetchTradeGroups, fetchTradeSubgroups, fetchBonusPots, saveBonusPots, fetchKPIConfig, saveKPIConfig, updateDynamicThreshold, updateDynamicThresholdAll } from '../api';
 import Header from '../components/layout/Header';
@@ -20,6 +20,7 @@ import { Separator } from "@/components/ui/separator";
 import { Plus, Minus, Trash2 } from 'lucide-react';
 
 const Thresholds = () => {
+    const { user } = useAuth();
     // DATA
     const [tradeGroups, setTradeGroups] = useState({});
     const [tradeSubgroups, setTradeSubgroups] = useState({}); // Stores trades per group
@@ -38,6 +39,9 @@ const Thresholds = () => {
     const [thresholds, setThresholds] = useState([]);
     const [gridThresholds, setGridThresholds] = useState({});
     const [dynamicScores, setDynamicScores] = useState([]);
+    // Tracks the last selection that was loaded so that user edits (add/remove rows)
+    // don't get wiped when kpiConfig reference changes (e.g. after a save).
+    const lastLoadedSelectionRef = useRef(null);
 
     const [loading, setLoading] = useState(true);
     const [message, setMessage] = useState(null);
@@ -85,13 +89,12 @@ const Thresholds = () => {
     }, [potGroup, potTrade, bonusPots]);
 
     // Available KPIs for selected group
+    // Dynamic (trade-based) KPIs are always available for all groups — thresholds
+    // are keyed by sub-trade label (e.g. "HVAC"), not raw Salesforce trade name.
     const availableKpis = Object.keys(kpiConfig).filter(kpi => {
         const cfg = kpiConfig[kpi];
-        if (selectedGroup === "__ALL__") return true; // All KPIs visible for "All" selection
-        if (cfg.dynamic && cfg.dynamic.thresholds_by_trade) {
-            const groupTrades = tradeGroups[selectedGroup] || [];
-            return groupTrades.some(t => t in cfg.dynamic.thresholds_by_trade);
-        }
+        if (selectedGroup === "__ALL__") return true;
+        if (cfg.dynamic && cfg.dynamic.type === 'trade_based') return true;
         return true;
     });
 
@@ -114,6 +117,7 @@ const Thresholds = () => {
             "Average Review Rating",
             "Review Ratio %",
             "Engineer Satisfaction %",
+            "Satisfaction Form Update %",
             "Cases %",
             "Engineer Retention %"
         ],
@@ -164,6 +168,12 @@ const Thresholds = () => {
     // Load Thresholds when KPI or Trade changes
     useEffect(() => {
         if (selectedKpi && kpiConfig[selectedKpi]) {
+            // Skip reload if selection hasn't changed — prevents user edits (add/remove rows)
+            // from being wiped when kpiConfig reference updates (e.g. after a save).
+            const selectionKey = `${selectedKpi}::${selectedGroup}::${selectedTrade}`;
+            if (lastLoadedSelectionRef.current === selectionKey) return;
+            lastLoadedSelectionRef.current = selectionKey;
+
             const cfg = kpiConfig[selectedKpi];
 
             // Dynamic KPI - load trade-specific thresholds
@@ -215,7 +225,13 @@ const Thresholds = () => {
                             newGrid[t] = new Array(scoresLen).fill(0);
                         }
                     });
-                    newGrid["All"] = new Array(scoresLen).fill('');
+                    // Auto-sum All from sub-trades
+                    newGrid["All"] = Array.from({ length: scoresLen }, (_, i) =>
+                        allowedTrades.reduce((sum, t) => {
+                            const val = parseFloat(newGrid[t]?.[i]);
+                            return sum + (isNaN(val) ? 0 : val);
+                        }, 0)
+                    );
                     setGridThresholds(newGrid);
                     setThresholds([]);
                 } else {
@@ -275,15 +291,21 @@ const Thresholds = () => {
     };
 
     const handleGridChange = (trade, scoreIdx, value) => {
+        if (trade === "All") return; // All is auto-calculated
         const newGrid = { ...gridThresholds };
+        newGrid[trade] = [...newGrid[trade]];
         const parsed = parseFloat(value);
-        if (trade === "All") {
-            newGrid["All"] = [...newGrid["All"]];
-            newGrid["All"][scoreIdx] = value;
-        } else {
-            newGrid[trade] = [...newGrid[trade]];
-            newGrid[trade][scoreIdx] = isNaN(parsed) ? 0 : parsed;
-        }
+        newGrid[trade][scoreIdx] = isNaN(parsed) ? 0 : parsed;
+
+        // Recalculate All as element-wise sum of sub-trades
+        const subTrades = Object.keys(newGrid).filter(k => k !== "All");
+        const len = newGrid["All"].length;
+        newGrid["All"] = Array.from({ length: len }, (_, i) =>
+            subTrades.reduce((sum, t) => {
+                const val = parseFloat(newGrid[t]?.[i]);
+                return sum + (isNaN(val) ? 0 : val);
+            }, 0)
+        );
         setGridThresholds(newGrid);
     };
 
@@ -450,9 +472,19 @@ const Thresholds = () => {
                     showGroupFilter={false}
                 />
 
-                <h1 className="text-3xl font-black text-foreground tracking-tight mb-8">
-                    Threshold Management
-                </h1>
+                <div className="flex items-center justify-between mb-8">
+                    <h1 className="text-3xl font-black text-foreground tracking-tight">
+                        Management
+                    </h1>
+                    {user?.role === 'admin' && (
+                        <Link
+                            to="/account-management"
+                            className="font-bold text-sm uppercase tracking-wider text-muted-foreground hover:text-brand-blue transition-colors border border-black/10 bg-white hover:bg-gray-50 px-3 py-1.5 rounded-md shadow-sm"
+                        >
+                            Manage Accounts
+                        </Link>
+                    )}
+                </div>
 
 
                 {/* Message Banner */}
@@ -680,11 +712,10 @@ const Thresholds = () => {
                                                                         <span className="text-muted-foreground font-bold">{currentKpiConfig?.direction === 'lower_is_better' ? '≤' : '≥'}</span>
                                                                         <Input
                                                                             type="number"
-                                                                            min={0}
-                                                                            step="any"
+                                                                            readOnly
                                                                             value={gridThresholds["All"]?.[idx] !== undefined ? gridThresholds["All"][idx] : ''}
-                                                                            onChange={(e) => handleGridChange("All", idx, e.target.value)}
-                                                                            className="w-[120px] font-black bg-white border-2 border-brand-blue/20 focus-visible:ring-brand-blue"
+                                                                            className="w-[120px] font-black bg-brand-blue/10 border-2 border-brand-blue/20 cursor-not-allowed text-brand-blue"
+                                                                            title="Auto-calculated as sum of sub-trades"
                                                                         />
                                                                     </div>
                                                                 </td>

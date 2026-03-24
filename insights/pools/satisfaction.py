@@ -12,6 +12,7 @@ SATISFACTION_KPIS = [
     "Engineer Satisfaction %",
     "Cases %",
     "Engineer Retention %",
+    "Satisfaction Form Update %",
 ]
 
 LOW_SCORE_CUT = 60.0
@@ -49,6 +50,7 @@ def _impact_text(kpi: str) -> str:
         "Engineer Satisfaction %": "Low engineer satisfaction can increase churn and reduce job quality.",
         "Cases %": "More cases usually means more customer pain and rework.",
         "Engineer Retention %": "Low retention increases recruiting costs and disrupts service delivery.",
+        "Satisfaction Form Update %": "Low form completion means satisfaction data is incomplete and trends cannot be tracked reliably.",
     }.get(kpi, "Satisfaction performance is below target and may increase churn and complaints.")
 
 
@@ -74,6 +76,10 @@ def _action_text(kpi: str) -> Dict[str, str]:
         "Engineer Retention %": {
             "level": "MEDIUM",
             "text": "Improve retention: strengthen onboarding/coaching, clarify progression, and intervene early with at-risk engineers.",
+        },
+        "Satisfaction Form Update %": {
+            "level": "MEDIUM",
+            "text": "Chase outstanding form submissions: remind engineers to complete the satisfaction form once per month and confirm completion with their TGM.",
         },
     }.get(kpi, {"level": "MEDIUM", "text": "Investigate and fix the drivers behind weak satisfaction performance."})
 

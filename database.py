@@ -29,7 +29,7 @@ def get_db_connection():
     return conn
 
 def initialize_db():
-    """Create the app_configs table if it doesn't exist."""
+    """Create the app_configs and app_users tables if they don't exist."""
     conn = get_db_connection()
     try:
         with conn.cursor() as cur:
@@ -37,6 +37,19 @@ def initialize_db():
                 CREATE TABLE IF NOT EXISTS app_configs (
                     config_key VARCHAR(100) PRIMARY KEY,
                     config_data JSONB NOT NULL,
+                    updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+                );
+            """)
+            cur.execute("""
+                CREATE TABLE IF NOT EXISTS app_users (
+                    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+                    email VARCHAR(255) UNIQUE NOT NULL,
+                    name VARCHAR(255),
+                    role VARCHAR(50) NOT NULL DEFAULT 'user',
+                    assigned_group VARCHAR(255),
+                    assigned_trade VARCHAR(255),
+                    assigned_region VARCHAR(255),
+                    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
                     updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
                 );
             """)
@@ -71,3 +84,109 @@ def save_config(key: str, data: dict):
     finally:
         conn.close()
 
+
+# ---------------------------------------------------------------------------
+# User management
+# ---------------------------------------------------------------------------
+
+def get_all_users() -> list:
+    """Return all managed users."""
+    conn = get_db_connection()
+    try:
+        with conn.cursor() as cur:
+            cur.execute("""
+                SELECT id::text, email, name, role,
+                       assigned_group, assigned_trade, assigned_region,
+                       created_at, updated_at
+                FROM app_users
+                ORDER BY created_at ASC;
+            """)
+            return [dict(row) for row in cur.fetchall()]
+    finally:
+        conn.close()
+
+
+def get_user_by_email(email: str) -> dict | None:
+    """Return a single user by email, or None."""
+    conn = get_db_connection()
+    try:
+        with conn.cursor() as cur:
+            cur.execute("""
+                SELECT id::text, email, name, role,
+                       assigned_group, assigned_trade, assigned_region
+                FROM app_users
+                WHERE LOWER(email) = LOWER(%s);
+            """, (email,))
+            row = cur.fetchone()
+            return dict(row) if row else None
+    finally:
+        conn.close()
+
+
+def create_user(data: dict) -> dict:
+    """Insert a new user and return the created row."""
+    conn = get_db_connection()
+    try:
+        with conn.cursor() as cur:
+            cur.execute("""
+                INSERT INTO app_users (email, name, role, assigned_group, assigned_trade, assigned_region)
+                VALUES (%s, %s, %s, %s, %s, %s)
+                RETURNING id::text, email, name, role,
+                          assigned_group, assigned_trade, assigned_region,
+                          created_at, updated_at;
+            """, (
+                data["email"],
+                data.get("name"),
+                data.get("role", "user"),
+                data.get("assigned_group"),
+                data.get("assigned_trade"),
+                data.get("assigned_region"),
+            ))
+            conn.commit()
+            return dict(cur.fetchone())
+    finally:
+        conn.close()
+
+
+def update_user(user_id: str, data: dict) -> dict | None:
+    """Update a user by UUID. Returns updated row or None if not found."""
+    conn = get_db_connection()
+    try:
+        with conn.cursor() as cur:
+            cur.execute("""
+                UPDATE app_users
+                SET name            = COALESCE(%s, name),
+                    role            = COALESCE(%s, role),
+                    assigned_group  = %s,
+                    assigned_trade  = %s,
+                    assigned_region = %s,
+                    updated_at      = CURRENT_TIMESTAMP
+                WHERE id = %s::uuid
+                RETURNING id::text, email, name, role,
+                          assigned_group, assigned_trade, assigned_region,
+                          created_at, updated_at;
+            """, (
+                data.get("name"),
+                data.get("role"),
+                data.get("assigned_group"),
+                data.get("assigned_trade"),
+                data.get("assigned_region"),
+                user_id,
+            ))
+            conn.commit()
+            row = cur.fetchone()
+            return dict(row) if row else None
+    finally:
+        conn.close()
+
+
+def delete_user(user_id: str) -> bool:
+    """Delete a user by UUID. Returns True if a row was deleted."""
+    conn = get_db_connection()
+    try:
+        with conn.cursor() as cur:
+            cur.execute("DELETE FROM app_users WHERE id = %s::uuid;", (user_id,))
+            conn.commit()
+            return cur.rowcount > 0
+    finally:
+        conn.close()

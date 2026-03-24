@@ -17,6 +17,7 @@ const DriversDetailModal = ({ isOpen, onClose, data, tradeGroup }) => {
         if (t.includes('roofing') || t.includes('window') || t.includes('door')) return <Home className="h-3.5 w-3.5 text-brand-blue" />;
         if (t.includes('decoration') || t.includes('decorating') || t.includes('painting')) return <Paintbrush className="h-3.5 w-3.5 text-brand-blue" />;
         if (t.includes('electrical')) return <Zap className="h-3.5 w-3.5 text-brand-blue" />;
+        if (t.includes('gas') && (t.includes('hvac') || t.includes('heating'))) return <Flame className="h-3.5 w-3.5 text-brand-blue" />;
         if (t.includes('heating') || t.includes('hvac') || t.includes('air con') || t.includes('ventilation')) return <Wind className="h-3.5 w-3.5 text-brand-blue" />;
         if (t.includes('gas') || t.includes('flame')) return <Flame className="h-3.5 w-3.5 text-brand-blue" />;
         if (t.includes('pest')) return <Rat className="h-3.5 w-3.5 text-brand-blue" />;
